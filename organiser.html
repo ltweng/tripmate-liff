@@ -400,12 +400,21 @@ function buildMissionCard(m, today) {
   if (status === 'pending' && rowIndex) {
     const actions = document.createElement('div');
     actions.className = 'm-actions';
-    actions.innerHTML =
-      '<button class="btn btn-coral" onclick="sendNow(' + rowIndex + ', this)">📤 立即推送</button>';
+
+    const sendBtn = document.createElement('button');
+    sendBtn.className = 'btn btn-coral';
+    sendBtn.textContent = '📤 立即推送';
+    sendBtn.addEventListener('click', function() { sendNow(rowIndex, sendBtn); });
+    actions.appendChild(sendBtn);
+
     if (liffUrl) {
-      actions.innerHTML +=
-        '<button class="btn btn-ghost" onclick="copyToClipboard(\'' + esc(liffUrl) + '\', this)">複製連結</button>';
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'btn btn-ghost';
+      copyBtn.textContent = '複製連結';
+      copyBtn.addEventListener('click', function() { copyToClipboard(liffUrl, copyBtn); });
+      actions.appendChild(copyBtn);
     }
+
     card.appendChild(actions);
   }
 
@@ -444,13 +453,6 @@ function renderRestaurants(pane) {
       const note = String(m['Note'] || '').trim();
       const budg = String(m['Budget'] || '').trim();
 
-      let rightHtml = isChosen
-        ? '<span class="chosen-tag">✓ 已選</span>'
-        : (rowIndex
-            ? '<button class="btn btn-teal" style="flex:none;padding:6px 14px;font-size:12px" ' +
-              'onclick="chooseRestaurant(' + rowIndex + ', \'' + esc(g.id) + '\', this)">選這家</button>'
-            : '');
-
       card.innerHTML =
         '<div class="rest-body">' +
           '<div style="flex:1;min-width:0">' +
@@ -462,8 +464,19 @@ function renderRestaurants(pane) {
                 '</div>'
               : '') +
           '</div>' +
-          rightHtml +
+          (isChosen ? '<span class="chosen-tag">✓ 已選</span>' : '') +
         '</div>';
+
+      if (!isChosen && rowIndex) {
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-teal';
+        btn.style.cssText = 'flex:none;padding:6px 14px;font-size:12px';
+        btn.textContent = '選這家';
+        const altGroupId = g.id;
+        btn.addEventListener('click', function() { chooseRestaurant(rowIndex, altGroupId, btn); });
+        card.querySelector('.rest-body').appendChild(btn);
+      }
+
       wrap.appendChild(card);
     });
 
@@ -477,7 +490,7 @@ function renderNfc(pane) {
   const missions = (orgData.missions || []).filter(m => m['_rowIndex']);
 
   if (!missions.length) {
-    pane.appendChild(emptyState('📡', '沒有任務', '建立任務並設定 Is Mission = TRUE'));
+    pane.appendChild(emptyState('📡', '沒有任務', '將行程的 Category 欄設為「任務」即可出現'));
     return;
   }
 
