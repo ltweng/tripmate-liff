@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>TripMate Organiser</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    :root {
+      --deep:        #0B2B4E;
+      --deep-mid:    #163D63;
+      --ocean:       #1A73C0;
+      --teal:        #1BAFBF;
+      --teal-light:  #E3F7F9;
+      --coral:       #D95F42;
+      --coral-light: #FDF0EC;
+      --bg:          #EEF5FB;
+      --card:        #FFFFFF;
+      --text:        #0B2342;
+      --muted:       #587A9A;
+      --border:      #C2D9ED;
+      --chosen-bg:   #E3F7F9;
+      --divider:     #DCE9F4;
+      /* Organiser-specific status colours */
+      --status-pending-bg:   #F0F4F8;
+      --status-pending-text: #5A7490;
+      --status-sent-bg:      #EBF3FC;
+      --status-sent-text:    #1A73C0;
+      --status-done-bg:      #E3F7F9;
+      --status-done-text:    #0A7A8A;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: -apple-system, 'Noto Sans TC', 'Helvetica Neue', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── Header ───────────────────────────────────────── */
+    #header {
+      position: sticky; top: 0; z-index: 20;
+      background: var(--deep);
+      padding: 14px 16px 0;
+    }
+    #brand { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    #brand h1 { font-size: 17px; font-weight: 700; color: #FFFFFF; letter-spacing: -0.3px; }
+    .org-badge {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+      background: var(--coral); color: #fff;
+      padding: 2px 7px; border-radius: 10px;
+    }
+    #user-line { font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 10px; }
+
+    /* ── Nav tabs ─────────────────────────────────────── */
+    #nav { display: flex; }
+    .nav-tab {
+      flex: 1; padding: 9px 0; font-size: 13px; font-weight: 600;
+      text-align: center; cursor: pointer;
+      color: rgba(255,255,255,0.45);
+      border-bottom: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
+      user-select: none;
+    }
+    .nav-tab.active { color: #FFFFFF; border-bottom-color: var(--teal); }
+
+    /* ── States ───────────────────────────────────────── */
+    #loading, #error-msg {
+      text-align: center; padding: 64px 24px; font-size: 14px; color: var(--muted);
+    }
+    #error-msg { color: var(--coral); }
+    .spinner {
+      width: 32px; height: 32px; margin: 0 auto 14px;
+      border: 3px solid var(--divider); border-top-color: var(--teal);
+      border-radius: 50%; animation: spin 0.75s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Content pane ─────────────────────────────────── */
+    #pane { padding: 12px 12px 32px; display: none; }
+
+    /* ── Filter bar (missions tab) ────────────────────── */
+    .filter-bar {
+      display: flex; gap: 6px; margin-bottom: 12px; overflow-x: auto;
+      scrollbar-width: none; -ms-overflow-style: none;
+    }
+    .filter-bar::-webkit-scrollbar { display: none; }
+    .filter-chip {
+      flex-shrink: 0;
+      padding: 5px 12px; border-radius: 20px;
+      font-size: 12px; font-weight: 600; cursor: pointer;
+      border: 1px solid var(--border); background: var(--card);
+      color: var(--muted); transition: all 0.12s;
+      white-space: nowrap;
+    }
+    .filter-chip.active {
+      background: var(--deep); color: #fff; border-color: var(--deep);
+    }
+
+    /* ── Mission card ─────────────────────────────────── */
+    .m-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 8px;
+      overflow: hidden;
+    }
+    .m-card.status-pending { border-left-color: #93A8BF; }
+    .m-card.status-sent    { border-left-color: var(--ocean); }
+    .m-card.status-done    { border-left-color: var(--teal); opacity: 0.85; }
+
+    .m-body { padding: 12px 14px 10px; }
+    .m-top  { display: flex; align-items: flex-start; gap: 8px; }
+
+    .m-icon {
+      flex-shrink: 0; width: 34px; height: 34px; border-radius: 9px;
+      background: var(--bg); display: flex; align-items: center;
+      justify-content: center; font-size: 16px;
+    }
+    .m-info { flex: 1; min-width: 0; }
+    .m-title {
+      font-size: 14px; font-weight: 600; margin-bottom: 3px;
+      word-break: break-word; color: var(--text);
+    }
+    .m-meta { font-size: 11px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 8px; }
+    .m-reward { font-size: 12px; color: var(--coral); font-weight: 600; margin-top: 4px; }
+    .m-note   { font-size: 12px; color: #4A6680; margin-top: 4px; }
+
+    /* Status badge */
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.2px;
+      padding: 2px 8px; border-radius: 20px;
+      white-space: nowrap;
+    }
+    .status-badge.pending { background: var(--status-pending-bg); color: var(--status-pending-text); }
+    .status-badge.sent    { background: var(--status-sent-bg);    color: var(--status-sent-text); }
+    .status-badge.done    { background: var(--status-done-bg);    color: var(--status-done-text); }
+
+    /* ── Card actions ─────────────────────────────────── */
+    .m-actions {
+      padding: 0 14px 12px; display: flex; gap: 8px; flex-wrap: wrap;
+    }
+    .btn {
+      flex: 1; min-width: 100px;
+      padding: 9px 12px; border: none; border-radius: 8px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: opacity 0.12s, transform 0.1s;
+    }
+    .btn:active:not(:disabled) { opacity: 0.75; transform: scale(0.98); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-coral { background: var(--coral); color: #fff; }
+    .btn-teal  { background: var(--teal);  color: #fff; }
+    .btn-ghost { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+    .btn-copy  { background: var(--deep-mid); color: #fff; }
+
+    .inline-msg {
+      font-size: 12px; font-weight: 600; color: var(--teal);
+      padding: 6px 14px 10px;
+    }
+
+    /* ── Restaurant group ─────────────────────────────── */
+    .rest-group { margin-bottom: 14px; }
+    .rest-label {
+      font-size: 11px; font-weight: 700; color: var(--teal);
+      text-transform: uppercase; letter-spacing: 0.5px;
+      padding: 4px 2px 6px;
+    }
+    .rest-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-left: 3px solid var(--teal); border-radius: 12px;
+      margin-bottom: 6px; overflow: hidden;
+    }
+    .rest-card.chosen { background: var(--chosen-bg); border-left-color: var(--ocean); }
+    .rest-body { padding: 11px 14px 10px; display: flex; align-items: center; gap: 10px; }
+    .rest-name { flex: 1; font-size: 14px; font-weight: 600; }
+    .rest-note { font-size: 12px; color: var(--muted); }
+    .chosen-tag {
+      font-size: 10px; font-weight: 700; padding: 2px 8px;
+      border-radius: 20px; background: var(--ocean); color: #fff;
+      white-space: nowrap;
+    }
+
+    /* ── NFC list ─────────────────────────────────────── */
+    .nfc-item {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; margin-bottom: 8px; overflow: hidden;
+    }
+    .nfc-body { padding: 12px 14px; }
+    .nfc-title { font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+    .nfc-date  { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+    .nfc-url {
+      font-family: 'Courier New', monospace;
+      font-size: 11px; color: var(--ocean);
+      word-break: break-all; background: var(--bg);
+      padding: 6px 8px; border-radius: 6px;
+      margin-bottom: 8px;
+    }
+    .nfc-url.empty { color: var(--muted); font-style: italic; font-family: inherit; }
+
+    /* ── Empty state ──────────────────────────────────── */
+    .empty-state {
+      text-align: center; padding: 48px 16px; color: var(--muted); font-size: 14px;
+    }
+    .empty-state p { margin-top: 4px; font-size: 12px; }
+  </style>
+</head>
+<body>
+
+<div id="header">
+  <div id="brand">
+    <span>⚙️</span>
+    <h1>TripMate</h1>
+    <span class="org-badge">ORGANISER</span>
+  </div>
+  <div id="user-line">讀取中…</div>
+  <div id="nav">
+    <div class="nav-tab active" data-tab="missions"     onclick="switchTab('missions')">任務</div>
+    <div class="nav-tab"        data-tab="restaurants"  onclick="switchTab('restaurants')">餐廳</div>
+    <div class="nav-tab"        data-tab="nfc"          onclick="switchTab('nfc')">NFC 連結</div>
+  </div>
+</div>
+
+<div id="loading"><div class="spinner"></div>載入中…</div>
+<div id="error-msg" style="display:none"></div>
+<div id="pane"></div>
+
+<script>
+// ── CONFIG ───────────────────────────────────────────────────────────────────
+const CONFIG = {
+  liffId: '2010468064-4RvCpshe',
+  gasUrl: 'https://script.google.com/macros/s/AKfycbx4yqj479yhsIAOUBkIWFKNvlKFnTCVZQ18uyiaxXtoGXJURpZ0bw26zgBsiqYu2rjQ/exec'
+};
+// ─────────────────────────────────────────────────────────────────────────────
+
+const EMOJI = {
+  '交通':'✈️','景點':'🏛️','餐廳':'🍽️','購物':'🛍️',
+  '住宿':'🏨','備註':'📝','待辦':'📋','任務':'🎯'
+};
+
+let currentTab  = 'missions';
+let currentUser = null;
+let orgData     = null; // { tripName, today, missions, altGroups }
+let missionFilter = 'all';
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
+async function init() {
+  try {
+    await liff.init({ liffId: CONFIG.liffId });
+    if (!liff.isLoggedIn()) { liff.login(); return; }
+
+    const profile = await liff.getProfile();
+    currentUser   = { userId: profile.userId, displayName: profile.displayName };
+    document.getElementById('user-line').textContent = '👤 ' + profile.displayName;
+
+    await loadOrganizerView();
+  } catch (err) {
+    showError('初始化失敗: ' + err.message);
+  }
+}
+
+// ── Fetch ─────────────────────────────────────────────────────────────────────
+
+async function loadOrganizerView() {
+  try {
+    const url  = CONFIG.gasUrl + '?action=getOrganizerView&userId=' + encodeURIComponent(currentUser.userId);
+    const data = await fetch(url).then(r => r.json());
+    if (data.error) throw new Error(data.error);
+    orgData = data;
+    document.getElementById('user-line').textContent =
+      '⚙️ ' + (data.tripName || 'TripMate') + '  ·  ' + currentUser.displayName;
+    render();
+  } catch (err) {
+    showError('無法載入資料: ' + err.message);
+  }
+}
+
+async function callPost(body) {
+  const res = await fetch(CONFIG.gasUrl, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ ...body, userId: currentUser.userId })
+  });
+  return res.json();
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.nav-tab').forEach(el => {
+    el.classList.toggle('active', el.dataset.tab === tab);
+  });
+  render();
+}
+
+// ── Render dispatcher ─────────────────────────────────────────────────────────
+
+function render() {
+  document.getElementById('loading').style.display = 'none';
+  const pane = document.getElementById('pane');
+  pane.style.display = 'block';
+  pane.innerHTML = '';
+
+  if (!orgData) return;
+
+  if (currentTab === 'missions')    renderMissions(pane);
+  if (currentTab === 'restaurants') renderRestaurants(pane);
+  if (currentTab === 'nfc')         renderNfc(pane);
+}
+
+// ── Missions tab ──────────────────────────────────────────────────────────────
+
+function renderMissions(pane) {
+  const today = orgData.today || '';
+
+  // Filter bar
+  const filters = [
+    { key: 'all',     label: '全部' },
+    { key: 'today',   label: '今天' },
+    { key: 'pending', label: '未觸發' },
+    { key: 'done',    label: '已完成' }
+  ];
+  const bar = document.createElement('div');
+  bar.className = 'filter-bar';
+  filters.forEach(f => {
+    const chip = document.createElement('div');
+    chip.className = 'filter-chip' + (missionFilter === f.key ? ' active' : '');
+    chip.textContent = f.label;
+    chip.onclick = () => { missionFilter = f.key; render(); };
+    bar.appendChild(chip);
+  });
+  pane.appendChild(bar);
+
+  let missions = orgData.missions || [];
+  if (missionFilter === 'today')   missions = missions.filter(m => String(m['Start Time'] || '').slice(0, 10) === today);
+  if (missionFilter === 'pending') missions = missions.filter(m => !m['Triggered At'] && !m['Completed At']);
+  if (missionFilter === 'done')    missions = missions.filter(m => !!m['Completed At']);
+
+  if (!missions.length) {
+    pane.appendChild(emptyState('🎯', '沒有符合條件的任務'));
+    return;
+  }
+
+  // Sort: pending → sent → done; within each group by start time
+  missions = missions.slice().sort((a, b) => {
+    const rank = m => m['Completed At'] ? 2 : (m['Triggered At'] ? 1 : 0);
+    if (rank(a) !== rank(b)) return rank(a) - rank(b);
+    return String(a['Start Time'] || '').localeCompare(String(b['Start Time'] || ''));
+  });
+
+  missions.forEach(m => pane.appendChild(buildMissionCard(m, today)));
+}
+
+function buildMissionCard(m, today) {
+  const rowIndex   = m['_rowIndex'] || 0;
+  const isDone     = !!m['Completed At'];
+  const isSent     = !!m['Triggered At'] && !isDone;
+  const status     = isDone ? 'done' : (isSent ? 'sent' : 'pending');
+  const emoji      = EMOJI[m['Category']] || '🎯';
+  const dateStr    = String(m['Mission Start Time'] || m['Start Time'] || '');
+  const isToday    = dateStr.slice(0, 10) === today;
+  const timeLabel  = isToday ? dateStr.slice(11, 16) : dateStr.slice(5, 16).replace('/', '/');
+  const note       = String(m['Note'] || '').trim();
+  const reward     = String(m['Reward'] || '').trim();
+  const liffUrl    = String(m['LIFF URL'] || '').trim();
+
+  const statusLabels = { pending: '未觸發', sent: '已推送', done: '已完成' };
+
+  const card = document.createElement('div');
+  card.className = 'm-card status-' + status;
+  card.dataset.rowIndex = rowIndex;
+
+  let metaHtml = '';
+  if (timeLabel) metaHtml += '<span>🕐 ' + esc(timeLabel) + '</span>';
+  if (isSent)    metaHtml += '<span>📤 ' + esc(m['Triggered At'].slice(11, 16)) + ' 推送</span>';
+  if (isDone)    metaHtml += '<span>✓ ' + esc(m['Completed At'].slice(11, 16)) + ' 完成</span>';
+  if (m['Completed By']) metaHtml += '<span>👤 ' + esc(m['Completed By'].slice(0, 12)) + '</span>';
+
+  card.innerHTML =
+    '<div class="m-body">' +
+      '<div class="m-top">' +
+        '<div class="m-icon">' + emoji + '</div>' +
+        '<div class="m-info">' +
+          '<div class="m-title">' + esc(m['Location'] || '任務') +
+            ' <span class="status-badge ' + status + '">' + statusLabels[status] + '</span></div>' +
+          (metaHtml ? '<div class="m-meta">' + metaHtml + '</div>' : '') +
+          (reward   ? '<div class="m-reward">🎁 ' + esc(reward) + '</div>' : '') +
+          (note     ? '<div class="m-note">'   + esc(note)   + '</div>' : '') +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  if (status === 'pending' && rowIndex) {
+    const actions = document.createElement('div');
+    actions.className = 'm-actions';
+    actions.innerHTML =
+      '<button class="btn btn-coral" onclick="sendNow(' + rowIndex + ', this)">📤 立即推送</button>';
+    if (liffUrl) {
+      actions.innerHTML +=
+        '<button class="btn btn-ghost" onclick="copyToClipboard(\'' + esc(liffUrl) + '\', this)">複製連結</button>';
+    }
+    card.appendChild(actions);
+  }
+
+  return card;
+}
+
+// ── Restaurants tab ───────────────────────────────────────────────────────────
+
+function renderRestaurants(pane) {
+  const groups = orgData.altGroups || [];
+
+  if (!groups.length) {
+    pane.appendChild(emptyState('🍽️', '今日沒有餐廳選擇', '沒有設定 Alt Group 的餐廳備選'));
+    return;
+  }
+
+  groups.forEach(g => {
+    const wrap  = document.createElement('div');
+    wrap.className = 'rest-group';
+
+    const members = g.members || [];
+    const time    = fmtTime(members[0] && members[0]['Start Time'], members[0] && members[0]['End Time']);
+
+    const label = document.createElement('div');
+    label.className = 'rest-label';
+    label.textContent = '🍽️ 餐廳選擇' + (time ? '  ·  ' + time : '');
+    wrap.appendChild(label);
+
+    members.forEach(m => {
+      const isChosen = m['Is Chosen'] === true || m['Is Chosen'] === 'true' || m['Is Chosen'] === 1;
+      const rowIndex = m['_rowIndex'] || 0;
+
+      const card = document.createElement('div');
+      card.className = 'rest-card' + (isChosen ? ' chosen' : '');
+
+      const note = String(m['Note'] || '').trim();
+      const budg = String(m['Budget'] || '').trim();
+
+      let rightHtml = isChosen
+        ? '<span class="chosen-tag">✓ 已選</span>'
+        : (rowIndex
+            ? '<button class="btn btn-teal" style="flex:none;padding:6px 14px;font-size:12px" ' +
+              'onclick="chooseRestaurant(' + rowIndex + ', \'' + esc(g.id) + '\', this)">選這家</button>'
+            : '');
+
+      card.innerHTML =
+        '<div class="rest-body">' +
+          '<div style="flex:1;min-width:0">' +
+            '<div class="rest-name">' + esc(m['Location'] || '') + '</div>' +
+            (note || budg
+              ? '<div class="rest-note">' +
+                  (budg ? '💰 ' + esc(budg) + (note ? '  ' : '') : '') +
+                  (note ? esc(note) : '') +
+                '</div>'
+              : '') +
+          '</div>' +
+          rightHtml +
+        '</div>';
+      wrap.appendChild(card);
+    });
+
+    pane.appendChild(wrap);
+  });
+}
+
+// ── NFC tab ───────────────────────────────────────────────────────────────────
+
+function renderNfc(pane) {
+  const missions = (orgData.missions || []).filter(m => m['_rowIndex']);
+
+  if (!missions.length) {
+    pane.appendChild(emptyState('📡', '沒有任務', '建立任務並設定 Is Mission = TRUE'));
+    return;
+  }
+
+  const tip = document.createElement('div');
+  tip.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6';
+  tip.innerHTML = '將以下連結寫入 NFC 貼紙，參與者靠近時即可開啟任務頁面。<br>建議使用 NFC Tools App 選擇 URL 格式。';
+  pane.appendChild(tip);
+
+  const sorted = missions.slice().sort((a, b) =>
+    String(a['Start Time'] || '').localeCompare(String(b['Start Time'] || ''))
+  );
+
+  sorted.forEach(m => {
+    const liffUrl = String(m['LIFF URL'] || '').trim();
+    const dateStr = String(m['Start Time'] || '').slice(0, 16);
+    const emoji   = EMOJI[m['Category']] || '🎯';
+
+    const item = document.createElement('div');
+    item.className = 'nfc-item';
+
+    item.innerHTML =
+      '<div class="nfc-body">' +
+        '<div class="nfc-title">' + emoji + ' ' + esc(m['Location'] || '任務') + '</div>' +
+        (dateStr ? '<div class="nfc-date">🕐 ' + esc(dateStr) + '</div>' : '') +
+        (liffUrl
+          ? '<div class="nfc-url">' + esc(liffUrl) + '</div>'
+          : '<div class="nfc-url empty">尚未設定 LIFF URL — 請先執行「Auto-fill LIFF URLs」</div>') +
+      '</div>';
+
+    if (liffUrl) {
+      const actions = document.createElement('div');
+      actions.style.cssText = 'padding:0 14px 12px;display:flex;gap:8px';
+      actions.innerHTML =
+        '<button class="btn btn-copy" onclick="copyToClipboard(\'' + esc(liffUrl) + '\', this)">複製連結</button>';
+      item.appendChild(actions);
+    }
+
+    pane.appendChild(item);
+  });
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+
+async function sendNow(rowIndex, btn) {
+  const mission = (orgData.missions || []).find(m => m['_rowIndex'] === rowIndex);
+  const name    = mission ? (mission['Location'] || '任務') : '任務';
+  if (!confirm('立即推送「' + name + '」給所有參與者？')) return;
+
+  btn.disabled    = true;
+  btn.textContent = '推送中…';
+  try {
+    const result = await callPost({ action: 'sendNow', rowIndex });
+    if (result.ok) {
+      // Update local state so re-render shows correct status
+      if (mission) mission['Triggered At'] = result.triggeredAt || '✓';
+      const card = btn.closest('.m-card');
+      card.className = card.className.replace('status-pending', 'status-sent');
+      card.querySelector('.status-badge').className = 'status-badge sent';
+      card.querySelector('.status-badge').textContent = '已推送';
+      btn.closest('.m-actions').innerHTML =
+        '<span style="font-size:12px;font-weight:600;color:var(--ocean);padding:6px 0">📤 已推送</span>';
+    } else {
+      btn.disabled    = false;
+      btn.textContent = '📤 立即推送';
+      alert('錯誤: ' + (result.error || '請稍後再試'));
+    }
+  } catch (err) {
+    btn.disabled    = false;
+    btn.textContent = '📤 立即推送';
+    alert('網路錯誤: ' + err.message);
+  }
+}
+
+async function chooseRestaurant(rowIndex, altGroupId, btn) {
+  btn.disabled    = true;
+  btn.textContent = '更新中…';
+  try {
+    const result = await callPost({ action: 'chooseRestaurant', rowIndex, altGroupId });
+    if (result.ok) {
+      // Update local state then re-render restaurant tab
+      const group = (orgData.altGroups || []).find(g => g.id === altGroupId);
+      if (group) {
+        group.members.forEach(m => { m['Is Chosen'] = (m['_rowIndex'] === rowIndex); });
+      }
+      render();
+    } else {
+      btn.disabled    = false;
+      btn.textContent = '選這家';
+      alert('錯誤: ' + (result.error || '請稍後再試'));
+    }
+  } catch (err) {
+    btn.disabled    = false;
+    btn.textContent = '選這家';
+    alert('網路錯誤: ' + err.message);
+  }
+}
+
+async function copyToClipboard(text, btn) {
+  const original = btn.textContent;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      // Fallback for LINE's in-app browser
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;opacity:0;top:-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    btn.textContent = '✓ 已複製!';
+    btn.disabled    = true;
+    setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 2000);
+  } catch (err) {
+    alert('請手動複製：\n\n' + text);
+  }
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+
+function fmtTime(start, end) {
+  const s = String(start || '').slice(11, 16);
+  const e = String(end   || '').slice(11, 16);
+  if (!s) return '';
+  return e ? s + ' – ' + e : s;
+}
+
+function esc(str) {
+  return String(str || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function emptyState(icon, title, sub) {
+  const el = document.createElement('div');
+  el.className = 'empty-state';
+  el.innerHTML = icon + '<br>' + esc(title) + (sub ? '<p>' + esc(sub) + '</p>' : '');
+  return el;
+}
+
+function showError(msg) {
+  document.getElementById('loading').style.display = 'none';
+  const el = document.getElementById('error-msg');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+init();
+</script>
+</body>
+</html>
