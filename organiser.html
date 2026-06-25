@@ -535,12 +535,26 @@ function renderNfc(pane) {
 // ── Actions ───────────────────────────────────────────────────────────────────
 
 async function sendNow(rowIndex, btn) {
-  const mission = (orgData.missions || []).find(m => m['_rowIndex'] === rowIndex);
-  const name    = mission ? (mission['Location'] || '任務') : '任務';
-  if (!confirm('立即推送「' + name + '」給所有參與者？')) return;
+  // LINE's in-app browser suppresses window.confirm(), so use a two-tap pattern instead.
+  if (!btn.dataset.confirming) {
+    btn.dataset.confirming = '1';
+    const orig = btn.textContent;
+    btn.textContent  = '確定推送? (再按)';
+    btn.style.background = 'var(--deep)';
+    setTimeout(() => {
+      if (btn.dataset.confirming) {
+        delete btn.dataset.confirming;
+        btn.textContent  = orig;
+        btn.style.background = '';
+      }
+    }, 3000);
+    return;
+  }
+  delete btn.dataset.confirming;
 
   btn.disabled    = true;
   btn.textContent = '推送中…';
+  btn.style.background = '';
   try {
     const result = await callPost({ action: 'sendNow', rowIndex });
     if (result.ok) {
