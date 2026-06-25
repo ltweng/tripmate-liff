@@ -180,11 +180,11 @@
 <div id="timeline"  style="display:none"></div>
 
 <script>
-// ── CONFIG — fill these after GAS deployment ─────────────────────────────────
+// ── CONFIG — only non-secret values live here ────────────────────────────────
 const CONFIG = {
   liffId: '2010468064-4RvCpshe',
-  gasUrl: 'https://script.google.com/macros/s/AKfycbx4yqj479yhsIAOUBkIWFKNvlKFnTCVZQ18uyiaxXtoGXJURpZ0bw26zgBsiqYu2rjQ/exec',
-  secret: 'secretwebhook_firsttest'
+  gasUrl: 'https://script.google.com/macros/s/AKfycbx4yqj479yhsIAOUBkIWFKNvlKFnTCVZQ18uyiaxXtoGXJURpZ0bw26zgBsiqYu2rjQ/exec'
+  // No secret here — GAS validates your LINE userId instead (set by liff.getProfile)
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -225,7 +225,8 @@ async function init() {
 
 async function loadTimeline(date) {
   try {
-    const url  = CONFIG.gasUrl + '?action=getTimeline&date=' + date + '&secret=' + encodeURIComponent(CONFIG.secret);
+    const userId = currentUser ? currentUser.userId : '';
+    const url  = CONFIG.gasUrl + '?action=getTimeline&date=' + date + '&userId=' + encodeURIComponent(userId);
     const data = await fetch(url).then(r => r.json());
     if (data.error) throw new Error(data.error);
 
@@ -245,7 +246,7 @@ async function callPost(body) {
   const res = await fetch(CONFIG.gasUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...body, secret: CONFIG.secret })
+    body: JSON.stringify({ ...body, userId: currentUser ? currentUser.userId : '' })
   });
   return res.json();
 }
