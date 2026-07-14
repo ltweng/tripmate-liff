@@ -3,8 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>TripMate Organiser</title>
+  <title>TripMate — Organiser</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
       --deep:        #0B2B4E;
@@ -21,19 +23,14 @@
       --border:      #C2D9ED;
       --chosen-bg:   #E3F7F9;
       --divider:     #DCE9F4;
-      /* Organiser-specific status colours */
-      --status-pending-bg:   #F0F4F8;
-      --status-pending-text: #5A7490;
-      --status-sent-bg:      #EBF3FC;
-      --status-sent-text:    #1A73C0;
-      --status-done-bg:      #E3F7F9;
-      --status-done-text:    #0A7A8A;
+      --radius:      18px;
+      --radius-sm:   12px;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
     body {
-      font-family: -apple-system, 'Noto Sans TC', 'Helvetica Neue', sans-serif;
+      font-family: 'Nunito', -apple-system, 'Noto Sans TC', 'Helvetica Neue', sans-serif;
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
@@ -41,32 +38,50 @@
       line-height: 1.5;
     }
 
+    h1, h2, .headline { font-family: 'Fraunces', 'Noto Sans TC', serif; }
+
     /* ── Header ───────────────────────────────────────── */
     #header {
       position: sticky; top: 0; z-index: 20;
       background: var(--deep);
       padding: 14px 16px 0;
     }
-    #brand { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-    #brand h1 { font-size: 17px; font-weight: 700; color: #FFFFFF; letter-spacing: -0.3px; }
-    .org-badge {
-      font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+    #brand { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    #brand h1 { font-size: 19px; font-weight: 700; color: #FFFFFF; letter-spacing: -0.2px; }
+    #brand .wave { font-size: 20px; }
+    .badge {
+      font-size: 10px; font-weight: 800; letter-spacing: 0.5px;
       background: var(--coral); color: #fff;
-      padding: 2px 7px; border-radius: 10px;
+      padding: 2px 9px; border-radius: 20px;
     }
-    #user-line { font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 10px; }
 
-    /* ── Nav tabs ─────────────────────────────────────── */
-    #nav { display: flex; }
+    #trip-select-wrap { margin-bottom: 10px; }
+    #trip-select {
+      width: 100%; appearance: none;
+      background: rgba(255,255,255,0.1); color: #fff;
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px; font-size: 13px; font-weight: 700;
+      font-family: inherit;
+    }
+    #trip-select option { color: #000; }
+
+    /* ── Nav pills ────────────────────────────────────── */
+    #nav {
+      display: flex; gap: 4px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 999px; padding: 4px;
+      margin-bottom: 12px;
+    }
     .nav-tab {
-      flex: 1; padding: 9px 0; font-size: 13px; font-weight: 600;
+      flex: 1; padding: 8px 0; font-size: 12.5px; font-weight: 700;
       text-align: center; cursor: pointer;
-      color: rgba(255,255,255,0.45);
-      border-bottom: 2px solid transparent;
-      transition: color 0.15s, border-color 0.15s;
+      color: rgba(255,255,255,0.55);
+      border-radius: 999px;
+      transition: all 0.15s;
       user-select: none;
     }
-    .nav-tab.active { color: #FFFFFF; border-bottom-color: var(--teal); }
+    .nav-tab.active { color: var(--deep); background: #FFFFFF; }
 
     /* ── States ───────────────────────────────────────── */
     #loading, #error-msg {
@@ -75,180 +90,146 @@
     #error-msg { color: var(--coral); }
     .spinner {
       width: 32px; height: 32px; margin: 0 auto 14px;
-      border: 3px solid var(--divider); border-top-color: var(--teal);
-      border-radius: 50%; animation: spin 0.75s linear infinite;
+      border: 3px solid var(--divider);
+      border-top-color: var(--teal);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Content pane ─────────────────────────────────── */
-    #pane { padding: 12px 12px 32px; display: none; }
+    #content { padding: 12px 12px 40px; }
 
-    /* ── Filter bar (missions tab) ────────────────────── */
-    .filter-bar {
-      display: flex; gap: 6px; margin-bottom: 12px; overflow-x: auto;
-      scrollbar-width: none; -ms-overflow-style: none;
+    /* ── Filter chips ─────────────────────────────────── */
+    #filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+    .chip {
+      font-size: 12px; font-weight: 700; padding: 6px 13px;
+      border-radius: 999px; background: var(--card); border: 1px solid var(--border);
+      color: var(--muted); cursor: pointer; user-select: none;
     }
-    .filter-bar::-webkit-scrollbar { display: none; }
-    .filter-chip {
-      flex-shrink: 0;
-      padding: 5px 12px; border-radius: 20px;
-      font-size: 12px; font-weight: 600; cursor: pointer;
-      border: 1px solid var(--border); background: var(--card);
-      color: var(--muted); transition: all 0.12s;
-      white-space: nowrap;
-    }
-    .filter-chip.active {
-      background: var(--deep); color: #fff; border-color: var(--deep);
-    }
+    .chip.active { background: var(--deep); color: #fff; border-color: var(--deep); }
 
-    /* ── Mission card ─────────────────────────────────── */
-    .m-card {
+    .no-items { text-align: center; padding: 48px 16px; color: var(--muted); font-size: 14px; }
+
+    /* ── Card ─────────────────────────────────────────── */
+    .card {
       background: var(--card);
+      border-radius: var(--radius);
       border: 1px solid var(--border);
-      border-left: 3px solid var(--border);
-      border-radius: 12px;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
       overflow: hidden;
     }
-    .m-card.status-pending { border-left-color: #93A8BF; }
-    .m-card.status-sent    { border-left-color: var(--ocean); }
-    .m-card.status-done    { border-left-color: var(--teal); opacity: 0.85; }
+    .card.mission { border-left: 4px solid var(--coral); }
+    .card.chosen  { background: var(--chosen-bg); border-color: var(--teal); }
 
-    .m-body { padding: 12px 14px 10px; }
-    .m-top  { display: flex; align-items: flex-start; gap: 8px; }
+    .card-body { padding: 13px 15px; }
+    .card-top  { display: flex; align-items: flex-start; gap: 10px; }
+    .cat-icon {
+      flex-shrink: 0; width: 36px; height: 36px; border-radius: var(--radius-sm);
+      background: var(--coral-light);
+      display: flex; align-items: center; justify-content: center; font-size: 17px;
+    }
+    .card-info { flex: 1; min-width: 0; }
+    .card-title { font-size: 14.5px; font-weight: 700; margin-bottom: 2px; word-break: break-word; }
+    .card-time  { font-size: 11px; color: var(--muted); margin-bottom: 1px; }
+    .card-note  { font-size: 12px; color: #4A6680; margin-top: 5px; white-space: pre-wrap; word-break: break-word; }
 
-    .m-icon {
-      flex-shrink: 0; width: 34px; height: 34px; border-radius: 9px;
-      background: var(--bg); display: flex; align-items: center;
-      justify-content: center; font-size: 16px;
+    .pill {
+      display: inline-block; font-size: 10px; font-weight: 800;
+      padding: 2px 8px; border-radius: 20px; margin-left: 5px; vertical-align: middle;
     }
-    .m-info { flex: 1; min-width: 0; }
-    .m-title {
-      font-size: 14px; font-weight: 600; margin-bottom: 3px;
-      word-break: break-word; color: var(--text);
-    }
-    .m-meta { font-size: 11px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 8px; }
-    .m-reward { font-size: 12px; color: var(--coral); font-weight: 600; margin-top: 4px; }
-    .m-note   { font-size: 12px; color: #4A6680; margin-top: 4px; }
+    .pill-untriggered { background: var(--border); color: var(--muted); }
+    .pill-triggered   { background: var(--coral-light); color: #B04530; }
+    .pill-done        { background: var(--teal-light); color: #0A7A8A; }
 
-    /* Status badge */
-    .status-badge {
-      display: inline-flex; align-items: center; gap: 3px;
-      font-size: 10px; font-weight: 700; letter-spacing: 0.2px;
-      padding: 2px 8px; border-radius: 20px;
-      white-space: nowrap;
-    }
-    .status-badge.pending { background: var(--status-pending-bg); color: var(--status-pending-text); }
-    .status-badge.sent    { background: var(--status-sent-bg);    color: var(--status-sent-text); }
-    .status-badge.done    { background: var(--status-done-bg);    color: var(--status-done-text); }
-
-    /* ── Card actions ─────────────────────────────────── */
-    .m-actions {
-      padding: 0 14px 12px; display: flex; gap: 8px; flex-wrap: wrap;
-    }
+    .card-actions { padding: 0 15px 13px; display: flex; gap: 8px; flex-wrap: wrap; }
     .btn {
-      flex: 1; min-width: 100px;
-      padding: 9px 12px; border: none; border-radius: 8px;
-      font-size: 13px; font-weight: 600; cursor: pointer;
+      flex: 1; min-width: 110px; padding: 10px 12px;
+      border: none; border-radius: var(--radius-sm);
+      font-size: 13px; font-weight: 700; cursor: pointer;
       transition: opacity 0.12s, transform 0.1s;
+      font-family: inherit;
     }
     .btn:active:not(:disabled) { opacity: 0.75; transform: scale(0.98); }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .btn-coral { background: var(--coral); color: #fff; }
-    .btn-teal  { background: var(--teal);  color: #fff; }
-    .btn-ghost { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
-    .btn-copy  { background: var(--deep-mid); color: #fff; }
+    .btn-coral  { background: var(--coral); color: #fff; }
+    .btn-coral-confirm { background: #B04530; color: #fff; }
+    .btn-teal   { background: var(--teal);  color: #fff; }
+    .btn-ghost  { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+    .btn-copy   { background: var(--deep-mid); color: #fff; flex: 0 0 auto; min-width: 72px; }
 
-    .inline-msg {
-      font-size: 12px; font-weight: 600; color: var(--teal);
-      padding: 6px 14px 10px;
-    }
-
-    /* ── Restaurant group ─────────────────────────────── */
-    .rest-group { margin-bottom: 14px; }
-    .rest-label {
-      font-size: 11px; font-weight: 700; color: var(--teal);
+    .alt-header {
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 4px 3px; font-size: 11px; font-weight: 800; color: var(--teal);
       text-transform: uppercase; letter-spacing: 0.5px;
-      padding: 4px 2px 6px;
     }
-    .rest-card {
-      background: var(--card); border: 1px solid var(--border);
-      border-left: 3px solid var(--teal); border-radius: 12px;
-      margin-bottom: 6px; overflow: hidden;
-    }
-    .rest-card.chosen { background: var(--chosen-bg); border-left-color: var(--ocean); }
-    .rest-body { padding: 11px 14px 10px; display: flex; align-items: center; gap: 10px; }
-    .rest-name { flex: 1; font-size: 14px; font-weight: 600; }
-    .rest-note { font-size: 12px; color: var(--muted); }
-    .chosen-tag {
-      font-size: 10px; font-weight: 700; padding: 2px 8px;
-      border-radius: 20px; background: var(--ocean); color: #fff;
-      white-space: nowrap;
-    }
+    .alt-divider { border: none; border-top: 1px solid var(--divider); margin: 4px 0; }
 
     /* ── NFC list ─────────────────────────────────────── */
-    .nfc-item {
+    .nfc-row {
+      display: flex; align-items: center; gap: 10px;
       background: var(--card); border: 1px solid var(--border);
-      border-radius: 12px; margin-bottom: 8px; overflow: hidden;
+      border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px;
     }
-    .nfc-body { padding: 12px 14px; }
-    .nfc-title { font-size: 13px; font-weight: 600; margin-bottom: 5px; }
-    .nfc-date  { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
-    .nfc-url {
-      font-family: 'Courier New', monospace;
-      font-size: 11px; color: var(--ocean);
-      word-break: break-all; background: var(--bg);
-      padding: 6px 8px; border-radius: 6px;
-      margin-bottom: 8px;
-    }
-    .nfc-url.empty { color: var(--muted); font-style: italic; font-family: inherit; }
+    .nfc-info { flex: 1; min-width: 0; }
+    .nfc-title { font-size: 13.5px; font-weight: 700; }
+    .nfc-url { font-size: 11px; color: var(--muted); word-break: break-all; margin-top: 2px; }
+    .nfc-missing { font-size: 11px; color: var(--coral); margin-top: 2px; }
 
-    /* ── Empty state ──────────────────────────────────── */
-    .empty-state {
-      text-align: center; padding: 48px 16px; color: var(--muted); font-size: 14px;
+    .inline-success { font-size: 13px; font-weight: 700; color: var(--teal); }
+    .toast {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: var(--deep); color: #fff; font-size: 13px; font-weight: 700;
+      padding: 10px 18px; border-radius: 999px; opacity: 0; pointer-events: none;
+      transition: opacity 0.2s; z-index: 50;
     }
-    .empty-state p { margin-top: 4px; font-size: 12px; }
+    .toast.show { opacity: 1; }
   </style>
 </head>
 <body>
 
 <div id="header">
   <div id="brand">
-    <span>⚙️</span>
+    <span class="wave">🌊</span>
     <h1>TripMate</h1>
-    <span class="org-badge">ORGANISER</span>
+    <span class="badge">ORGANISER</span>
   </div>
-  <div id="user-line">讀取中…</div>
+  <div id="trip-select-wrap">
+    <select id="trip-select" onchange="onTripChange(this.value)"><option>載入行程中…</option></select>
+  </div>
   <div id="nav">
-    <div class="nav-tab active" data-tab="missions"     onclick="switchTab('missions')">任務</div>
-    <div class="nav-tab"        data-tab="restaurants"  onclick="switchTab('restaurants')">餐廳</div>
-    <div class="nav-tab"        data-tab="nfc"          onclick="switchTab('nfc')">NFC 連結</div>
+    <div class="nav-tab active" data-tab="missions" onclick="switchTab('missions')">任務</div>
+    <div class="nav-tab"        data-tab="restaurants" onclick="switchTab('restaurants')">餐廳</div>
+    <div class="nav-tab"        data-tab="nfc" onclick="switchTab('nfc')">NFC 連結</div>
   </div>
 </div>
 
 <div id="loading"><div class="spinner"></div>載入中…</div>
 <div id="error-msg" style="display:none"></div>
-<div id="pane"></div>
+<div id="content" style="display:none"></div>
+<div id="toast" class="toast"></div>
 
 <script>
-// ── CONFIG ───────────────────────────────────────────────────────────────────
+// ── CONFIG — only non-secret values live here ────────────────────────────────
 const CONFIG = {
   liffId: '2010468064-4RvCpshe',
   gasUrl: 'https://script.google.com/macros/s/AKfycbx4yqj479yhsIAOUBkIWFKNvlKFnTCVZQ18uyiaxXtoGXJURpZ0bw26zgBsiqYu2rjQ/exec'
+  // No secret here — GAS validates your LINE userId instead (set by liff.getProfile)
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
 const EMOJI = {
-  '交通':'✈️','景點':'🏛️','餐廳':'🍽️','購物':'🛍️',
-  '住宿':'🏨','備註':'📝','待辦':'📋','任務':'🎯'
+  'Transportation':'🚌','Attraction':'🏛️','Restaurant':'🍽️','Shopping':'🛍️',
+  'Accommodation':'🏨','Note':'📝','Task':'📋','Mission':'🎯'
 };
 
-let currentTab  = 'missions';
-let currentUser = null;
-let orgData     = null; // { tripName, today, missions, altGroups }
-let missionFilter = 'all';
+let currentUser   = null;
+let currentTab    = 'missions';
+let missionFilter = 'all'; // all | today | pending | done
+let currentTrip   = null;
+let viewData      = { missions: [], altGroups: [], today: '' };
+let pendingSend   = null; // rowIndex awaiting second confirm tap
 
-// ── Init ──────────────────────────────────────────────────────────────────────
+// ── Init ─────────────────────────────────────────────────────────────────────
 
 async function init() {
   try {
@@ -257,24 +238,56 @@ async function init() {
 
     const profile = await liff.getProfile();
     currentUser   = { userId: profile.userId, displayName: profile.displayName };
-    document.getElementById('user-line').textContent = '👤 ' + profile.displayName;
 
-    await loadOrganizerView();
+    await loadTrips();
   } catch (err) {
     showError('初始化失敗: ' + err.message);
   }
 }
 
-// ── Fetch ─────────────────────────────────────────────────────────────────────
+async function loadTrips() {
+  const userId = currentUser.userId;
+  const url = CONFIG.gasUrl + '?action=getTrips&userId=' + encodeURIComponent(userId);
+  const data = await fetch(url).then(r => r.json());
+  if (data.error) throw new Error(data.error);
 
-async function loadOrganizerView() {
+  const sel = document.getElementById('trip-select');
+  const trips = data.trips || [];
+  if (!trips.length) {
+    sel.innerHTML = '<option value="">尚無行程</option>';
+  } else {
+    sel.innerHTML = trips.map(t =>
+      '<option value="' + esc(t['Trip']) + '">' + esc(t['Trip']) +
+      (t['Trip'] === data.activeTrip ? '　★' : '') + '</option>'
+    ).join('');
+  }
+  currentTrip = (data.activeTrip && trips.some(t => t['Trip'] === data.activeTrip))
+    ? data.activeTrip
+    : (trips[0] ? trips[0]['Trip'] : null);
+  sel.value = currentTrip || '';
+
+  if (currentTrip) await loadOrganizerView(currentTrip);
+  else showError('尚未設定任何行程，請先匯入行程資料。');
+}
+
+async function onTripChange(trip) {
+  currentTrip = trip;
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('content').style.display = 'none';
+  await loadOrganizerView(trip);
+}
+
+async function loadOrganizerView(trip) {
   try {
-    const url  = CONFIG.gasUrl + '?action=getOrganizerView&userId=' + encodeURIComponent(currentUser.userId);
+    const userId = currentUser.userId;
+    const url = CONFIG.gasUrl + '?action=getOrganizerView&trip=' + encodeURIComponent(trip) +
+                '&userId=' + encodeURIComponent(userId);
     const data = await fetch(url).then(r => r.json());
     if (data.error) throw new Error(data.error);
-    orgData = data;
-    document.getElementById('user-line').textContent =
-      '⚙️ ' + (data.tripName || 'TripMate') + '  ·  ' + currentUser.displayName;
+
+    viewData = data;
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
     render();
   } catch (err) {
     showError('無法載入資料: ' + err.message);
@@ -283,9 +296,9 @@ async function loadOrganizerView() {
 
 async function callPost(body) {
   const res = await fetch(CONFIG.gasUrl, {
-    method:  'POST',
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ ...body, userId: currentUser.userId })
+    body: JSON.stringify({ ...body, userId: currentUser ? currentUser.userId : '' })
   });
   return res.json();
 }
@@ -300,329 +313,260 @@ function switchTab(tab) {
   render();
 }
 
-// ── Render dispatcher ─────────────────────────────────────────────────────────
+function setMissionFilter(f) {
+  missionFilter = f;
+  render();
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
 
 function render() {
-  document.getElementById('loading').style.display = 'none';
-  const pane = document.getElementById('pane');
-  pane.style.display = 'block';
-  pane.innerHTML = '';
+  const el = document.getElementById('content');
+  el.innerHTML = '';
 
-  if (!orgData) return;
-
-  if (currentTab === 'missions')    renderMissions(pane);
-  if (currentTab === 'restaurants') renderRestaurants(pane);
-  if (currentTab === 'nfc')         renderNfc(pane);
+  if (currentTab === 'missions') el.appendChild(renderMissions());
+  else if (currentTab === 'restaurants') el.appendChild(renderRestaurants());
+  else el.appendChild(renderNfc());
 }
 
-// ── Missions tab ──────────────────────────────────────────────────────────────
+function renderMissions() {
+  const wrap = document.createElement('div');
 
-function renderMissions(pane) {
-  const today = orgData.today || '';
+  const filters = document.createElement('div');
+  filters.id = 'filters';
+  const filterDefs = [['all','全部'], ['today','今天'], ['pending','待推送'], ['done','已完成']];
+  filters.innerHTML = filterDefs.map(([key, label]) =>
+    '<div class="chip' + (missionFilter === key ? ' active' : '') + '" onclick="setMissionFilter(\'' + key + '\')">' + label + '</div>'
+  ).join('');
+  wrap.appendChild(filters);
 
-  // Filter bar
-  const filters = [
-    { key: 'all',     label: '全部' },
-    { key: 'today',   label: '今天' },
-    { key: 'pending', label: '未觸發' },
-    { key: 'done',    label: '已完成' }
-  ];
-  const bar = document.createElement('div');
-  bar.className = 'filter-bar';
-  filters.forEach(f => {
-    const chip = document.createElement('div');
-    chip.className = 'filter-chip' + (missionFilter === f.key ? ' active' : '');
-    chip.textContent = f.label;
-    chip.onclick = () => { missionFilter = f.key; render(); };
-    bar.appendChild(chip);
-  });
-  pane.appendChild(bar);
-
-  let missions = orgData.missions || [];
-  if (missionFilter === 'today')   missions = missions.filter(m => String(m['Start Time'] || '').slice(0, 10) === today);
-  if (missionFilter === 'pending') missions = missions.filter(m => !m['Triggered At'] && !m['Completed At']);
-  if (missionFilter === 'done')    missions = missions.filter(m => !!m['Completed At']);
-
-  if (!missions.length) {
-    pane.appendChild(emptyState('🎯', '沒有符合條件的任務'));
-    return;
+  let missions = viewData.missions || [];
+  const today = viewData.today || '';
+  if (missionFilter === 'today') {
+    missions = missions.filter(m => String(m['Start Time'] || '').replace(/-/g,'/').slice(0,10) === today
+      || String(m['Mission Start Time'] || '').replace(/-/g,'/').slice(0,10) === today);
+  } else if (missionFilter === 'pending') {
+    missions = missions.filter(m => !m['Triggered At'] && !m['Completed At']);
+  } else if (missionFilter === 'done') {
+    missions = missions.filter(m => !!m['Completed At']);
   }
 
-  // Sort: pending → sent → done; within each group by start time
-  missions = missions.slice().sort((a, b) => {
-    const rank = m => m['Completed At'] ? 2 : (m['Triggered At'] ? 1 : 0);
-    if (rank(a) !== rank(b)) return rank(a) - rank(b);
-    return String(a['Start Time'] || '').localeCompare(String(b['Start Time'] || ''));
-  });
+  if (!missions.length) {
+    const empty = document.createElement('div');
+    empty.className = 'no-items';
+    empty.textContent = '🎯 沒有符合條件的任務';
+    wrap.appendChild(empty);
+    return wrap;
+  }
 
-  missions.forEach(m => pane.appendChild(buildMissionCard(m, today)));
+  missions.forEach(m => wrap.appendChild(buildMissionCard(m)));
+  return wrap;
 }
 
-function buildMissionCard(m, today) {
-  const rowIndex   = m['_rowIndex'] || 0;
-  const isDone     = !!m['Completed At'];
-  const isSent     = !!m['Triggered At'] && !isDone;
-  const status     = isDone ? 'done' : (isSent ? 'sent' : 'pending');
-  const emoji      = EMOJI[m['Category']] || '🎯';
-  const dateStr    = String(m['Mission Start Time'] || m['Start Time'] || '');
-  const isToday    = dateStr.slice(0, 10) === today;
-  const timeLabel  = isToday ? dateStr.slice(11, 16) : dateStr.slice(5, 16).replace('/', '/');
-  const note       = String(m['Note'] || '').trim();
-  const reward     = String(m['Reward'] || '').trim();
-  const liffUrl    = String(m['LIFF URL'] || '').trim();
+function buildMissionCard(item) {
+  const rowIndex = item['_rowIndex'] || 0;
+  const isDone = !!item['Completed At'];
+  const isSent = !!item['Triggered At'];
+  const note   = (item['Note'] || '').trim();
+  const timeStr = fmtTime(item['Mission Start Time'] || item['Start Time'], item['End Time']);
 
-  const statusLabels = { pending: '未觸發', sent: '已推送', done: '已完成' };
+  const statusPill = isDone
+    ? '<span class="pill pill-done">✓ 已完成</span>'
+    : isSent
+      ? '<span class="pill pill-triggered">已推送</span>'
+      : '<span class="pill pill-untriggered">未觸發</span>';
 
   const card = document.createElement('div');
-  card.className = 'm-card status-' + status;
-  card.dataset.rowIndex = rowIndex;
-
-  let metaHtml = '';
-  if (timeLabel) metaHtml += '<span>🕐 ' + esc(timeLabel) + '</span>';
-  if (isSent)    metaHtml += '<span>📤 ' + esc(m['Triggered At'].slice(11, 16)) + ' 推送</span>';
-  if (isDone)    metaHtml += '<span>✓ ' + esc(m['Completed At'].slice(11, 16)) + ' 完成</span>';
-  if (m['Completed By']) metaHtml += '<span>👤 ' + esc(m['Completed By'].slice(0, 12)) + '</span>';
+  card.className = 'card mission';
 
   card.innerHTML =
-    '<div class="m-body">' +
-      '<div class="m-top">' +
-        '<div class="m-icon">' + emoji + '</div>' +
-        '<div class="m-info">' +
-          '<div class="m-title">' + esc(m['Location'] || '任務') +
-            ' <span class="status-badge ' + status + '">' + statusLabels[status] + '</span></div>' +
-          (metaHtml ? '<div class="m-meta">' + metaHtml + '</div>' : '') +
-          (reward   ? '<div class="m-reward">🎁 ' + esc(reward) + '</div>' : '') +
-          (note     ? '<div class="m-note">'   + esc(note)   + '</div>' : '') +
+    '<div class="card-body">' +
+      '<div class="card-top">' +
+        '<div class="cat-icon">🎯</div>' +
+        '<div class="card-info">' +
+          '<div class="card-title">' + esc(item['Item'] || '') + statusPill + '</div>' +
+          (timeStr ? '<div class="card-time">🕐 ' + timeStr + '</div>' : '') +
+          (note ? '<div class="card-note">' + esc(note) + '</div>' : '') +
         '</div>' +
       '</div>' +
     '</div>';
 
-  if (status === 'pending' && rowIndex) {
+  if (!isDone) {
     const actions = document.createElement('div');
-    actions.className = 'm-actions';
-
-    const sendBtn = document.createElement('button');
-    sendBtn.className = 'btn btn-coral';
-    sendBtn.textContent = '📤 立即推送';
-    sendBtn.addEventListener('click', function() { sendNow(rowIndex, sendBtn); });
-    actions.appendChild(sendBtn);
-
-    if (liffUrl) {
-      const copyBtn = document.createElement('button');
-      copyBtn.className = 'btn btn-ghost';
-      copyBtn.textContent = '複製連結';
-      copyBtn.addEventListener('click', function() { copyToClipboard(liffUrl, copyBtn); });
-      actions.appendChild(copyBtn);
-    }
-
+    actions.className = 'card-actions';
+    const isPendingConfirm = pendingSend === rowIndex;
+    actions.innerHTML =
+      '<button class="btn ' + (isPendingConfirm ? 'btn-coral-confirm' : 'btn-coral') + '" ' +
+      'onclick="onSendNowClick(' + rowIndex + ', this)">' +
+      (isPendingConfirm ? '再按一次確認送出' : (isSent ? '重新推送' : '立即推送')) +
+      '</button>';
     card.appendChild(actions);
   }
 
   return card;
 }
 
-// ── Restaurants tab ───────────────────────────────────────────────────────────
-
-function renderRestaurants(pane) {
-  const groups = orgData.altGroups || [];
+function renderRestaurants() {
+  const wrap = document.createElement('div');
+  const groups = viewData.altGroups || [];
 
   if (!groups.length) {
-    pane.appendChild(emptyState('🍽️', '今日沒有餐廳選擇', '沒有設定 Alt Group 的餐廳備選'));
-    return;
+    const empty = document.createElement('div');
+    empty.className = 'no-items';
+    empty.textContent = '🍽️ 今天沒有需要選擇的餐廳';
+    return (wrap.appendChild(empty), wrap);
   }
 
   groups.forEach(g => {
-    const wrap  = document.createElement('div');
-    wrap.className = 'rest-group';
+    const time = fmtTime(g.members[0]['Start Time'], g.members[0]['End Time']);
+    const hdr = document.createElement('div');
+    hdr.className = 'alt-header';
+    hdr.textContent = '🍽️ 餐廳選擇' + (time ? '  ·  ' + time : '');
+    wrap.appendChild(hdr);
 
-    const members = g.members || [];
-    const time    = fmtTime(members[0] && members[0]['Start Time'], members[0] && members[0]['End Time']);
-
-    const label = document.createElement('div');
-    label.className = 'rest-label';
-    label.textContent = '🍽️ 餐廳選擇' + (time ? '  ·  ' + time : '');
-    wrap.appendChild(label);
-
-    members.forEach(m => {
-      const isChosen = m['Is Chosen'] === true || m['Is Chosen'] === 'true' || m['Is Chosen'] === 1;
-      const rowIndex = m['_rowIndex'] || 0;
-
-      const card = document.createElement('div');
-      card.className = 'rest-card' + (isChosen ? ' chosen' : '');
-
-      const note = String(m['Note'] || '').trim();
-      const budg = String(m['Budget'] || '').trim();
-
-      card.innerHTML =
-        '<div class="rest-body">' +
-          '<div style="flex:1;min-width:0">' +
-            '<div class="rest-name">' + esc(m['Location'] || '') + '</div>' +
-            (note || budg
-              ? '<div class="rest-note">' +
-                  (budg ? '💰 ' + esc(budg) + (note ? '  ' : '') : '') +
-                  (note ? esc(note) : '') +
-                '</div>'
-              : '') +
-          '</div>' +
-          (isChosen ? '<span class="chosen-tag">✓ 已選</span>' : '') +
-        '</div>';
-
-      if (!isChosen && rowIndex) {
-        const btn = document.createElement('button');
-        btn.className = 'btn btn-teal';
-        btn.style.cssText = 'flex:none;padding:6px 14px;font-size:12px';
-        btn.textContent = '選這家';
-        const altGroupId = g.id;
-        btn.addEventListener('click', function() { chooseRestaurant(rowIndex, altGroupId, btn); });
-        card.querySelector('.rest-body').appendChild(btn);
-      }
-
-      wrap.appendChild(card);
+    g.members.forEach((m, i) => {
+      if (i > 0) { const hr = document.createElement('hr'); hr.className = 'alt-divider'; wrap.appendChild(hr); }
+      wrap.appendChild(buildRestaurantCard(m, g.id));
     });
-
-    pane.appendChild(wrap);
   });
+
+  return wrap;
 }
 
-// ── NFC tab ───────────────────────────────────────────────────────────────────
+function buildRestaurantCard(item, altGroupId) {
+  const rowIndex = item['_rowIndex'] || 0;
+  const isChosen = item['Is Chosen'] === true || item['Is Chosen'] === 'true';
+  const note = (item['Note'] || '').trim();
+  const timeStr = fmtTime(item['Start Time'], item['End Time']);
 
-function renderNfc(pane) {
-  const missions = (orgData.missions || []).filter(m => m['_rowIndex']);
+  const card = document.createElement('div');
+  card.className = 'card' + (isChosen ? ' chosen' : '');
+  card.innerHTML =
+    '<div class="card-body">' +
+      '<div class="card-top">' +
+        '<div class="cat-icon">🍽️</div>' +
+        '<div class="card-info">' +
+          '<div class="card-title">' + esc(item['Item'] || '') + (isChosen ? '<span class="pill pill-done">✓ 已選</span>' : '') + '</div>' +
+          (timeStr ? '<div class="card-time">🕐 ' + timeStr + '</div>' : '') +
+          (note ? '<div class="card-note">' + esc(note) + '</div>' : '') +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  const actions = document.createElement('div');
+  actions.className = 'card-actions';
+  actions.innerHTML = isChosen
+    ? '<span class="inline-success">✓ 已選這家</span>'
+    : '<button class="btn btn-teal" onclick="chooseRestaurant(' + rowIndex + ', \'' + esc(altGroupId) + '\', this)">選這家</button>';
+  card.appendChild(actions);
+
+  return card;
+}
+
+function renderNfc() {
+  const wrap = document.createElement('div');
+  const missions = viewData.missions || [];
 
   if (!missions.length) {
-    pane.appendChild(emptyState('📡', '沒有任務', '將行程的 Category 欄設為「任務」即可出現'));
-    return;
+    const empty = document.createElement('div');
+    empty.className = 'no-items';
+    empty.textContent = '📎 尚無任務';
+    return (wrap.appendChild(empty), wrap);
   }
 
-  const tip = document.createElement('div');
-  tip.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6';
-  tip.innerHTML = '將以下連結寫入 NFC 貼紙，參與者靠近時即可開啟任務頁面。<br>建議使用 NFC Tools App 選擇 URL 格式。';
-  pane.appendChild(tip);
-
-  const sorted = missions.slice().sort((a, b) =>
-    String(a['Start Time'] || '').localeCompare(String(b['Start Time'] || ''))
-  );
-
-  sorted.forEach(m => {
-    const liffUrl = String(m['LIFF URL'] || '').trim();
-    const dateStr = String(m['Start Time'] || '').slice(0, 16);
-    const emoji   = EMOJI[m['Category']] || '🎯';
-
-    const item = document.createElement('div');
-    item.className = 'nfc-item';
-
-    item.innerHTML =
-      '<div class="nfc-body">' +
-        '<div class="nfc-title">' + emoji + ' ' + esc(m['Location'] || '任務') + '</div>' +
-        (dateStr ? '<div class="nfc-date">🕐 ' + esc(dateStr) + '</div>' : '') +
-        (liffUrl
-          ? '<div class="nfc-url">' + esc(liffUrl) + '</div>'
-          : '<div class="nfc-url empty">尚未設定 LIFF URL — 請先執行「Auto-fill LIFF URLs」</div>') +
-      '</div>';
-
-    if (liffUrl) {
-      const actions = document.createElement('div');
-      actions.style.cssText = 'padding:0 14px 12px;display:flex;gap:8px';
-      actions.innerHTML =
-        '<button class="btn btn-copy" onclick="copyToClipboard(\'' + esc(liffUrl) + '\', this)">複製連結</button>';
-      item.appendChild(actions);
-    }
-
-    pane.appendChild(item);
+  missions.forEach(m => {
+    const url = (m['LIFF URL'] || '').trim();
+    const row = document.createElement('div');
+    row.className = 'nfc-row';
+    row.innerHTML =
+      '<div class="nfc-info">' +
+        '<div class="nfc-title">🎯 ' + esc(m['Item'] || '') + '</div>' +
+        (url ? '<div class="nfc-url">' + esc(url) + '</div>'
+             : '<div class="nfc-missing">尚未產生連結 — 請於 GAS 執行「Auto-fill LIFF URLs」</div>') +
+      '</div>' +
+      (url ? '<button class="btn btn-copy" onclick="copyUrl(\'' + esc(url) + '\', this)">複製連結</button>' : '');
+    wrap.appendChild(row);
   });
+
+  return wrap;
 }
 
 // ── Actions ───────────────────────────────────────────────────────────────────
 
-async function sendNow(rowIndex, btn) {
-  // LINE's in-app browser suppresses window.confirm(), so use a two-tap pattern instead.
-  if (!btn.dataset.confirming) {
-    btn.dataset.confirming = '1';
-    const orig = btn.textContent;
-    btn.textContent  = '確定推送? (再按)';
-    btn.style.background = 'var(--deep)';
-    setTimeout(() => {
-      if (btn.dataset.confirming) {
-        delete btn.dataset.confirming;
-        btn.textContent  = orig;
-        btn.style.background = '';
-      }
-    }, 3000);
-    return;
+// Two-tap confirmation — window.confirm() is silently suppressed inside the
+// LINE in-app browser (always returns false), so a native confirm dialog
+// can never be used here. First tap arms the button; a second tap on the
+// same row within a few seconds actually sends.
+function onSendNowClick(rowIndex, btn) {
+  if (pendingSend === rowIndex) {
+    sendNow(rowIndex, btn);
+  } else {
+    pendingSend = rowIndex;
+    render();
+    setTimeout(() => { if (pendingSend === rowIndex) { pendingSend = null; render(); } }, 4000);
   }
-  delete btn.dataset.confirming;
+}
 
-  btn.disabled    = true;
-  btn.textContent = '推送中…';
-  btn.style.background = '';
+async function sendNow(rowIndex, btn) {
+  pendingSend = null;
+  btn.disabled = true;
+  btn.textContent = '送出中…';
   try {
     const result = await callPost({ action: 'sendNow', rowIndex });
     if (result.ok) {
-      // Update local state so re-render shows correct status
-      if (mission) mission['Triggered At'] = result.triggeredAt || '✓';
-      const card = btn.closest('.m-card');
-      card.className = card.className.replace('status-pending', 'status-sent');
-      card.querySelector('.status-badge').className = 'status-badge sent';
-      card.querySelector('.status-badge').textContent = '已推送';
-      btn.closest('.m-actions').innerHTML =
-        '<span style="font-size:12px;font-weight:600;color:var(--ocean);padding:6px 0">📤 已推送</span>';
+      showToast('✓ 已推送任務通知');
+      const m = (viewData.missions || []).find(x => x['_rowIndex'] === rowIndex);
+      if (m) m['Triggered At'] = result.triggeredAt;
+      render();
     } else {
-      btn.disabled    = false;
-      btn.textContent = '📤 立即推送';
       alert('錯誤: ' + (result.error || '請稍後再試'));
+      render();
     }
   } catch (err) {
-    btn.disabled    = false;
-    btn.textContent = '📤 立即推送';
     alert('網路錯誤: ' + err.message);
+    render();
   }
 }
 
 async function chooseRestaurant(rowIndex, altGroupId, btn) {
-  btn.disabled    = true;
-  btn.textContent = '更新中…';
+  btn.disabled = true;
+  btn.textContent = '選擇中…';
   try {
     const result = await callPost({ action: 'chooseRestaurant', rowIndex, altGroupId });
     if (result.ok) {
-      // Update local state then re-render restaurant tab
-      const group = (orgData.altGroups || []).find(g => g.id === altGroupId);
-      if (group) {
-        group.members.forEach(m => { m['Is Chosen'] = (m['_rowIndex'] === rowIndex); });
-      }
-      render();
+      await loadOrganizerView(currentTrip);
+      showToast('✓ 已更新選擇');
     } else {
-      btn.disabled    = false;
-      btn.textContent = '選這家';
+      btn.disabled = false; btn.textContent = '選這家';
       alert('錯誤: ' + (result.error || '請稍後再試'));
     }
   } catch (err) {
-    btn.disabled    = false;
-    btn.textContent = '選這家';
+    btn.disabled = false; btn.textContent = '選這家';
     alert('網路錯誤: ' + err.message);
   }
 }
 
-async function copyToClipboard(text, btn) {
-  const original = btn.textContent;
-  try {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(text);
-    } else {
-      // Fallback for LINE's in-app browser
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      ta.style.cssText = 'position:fixed;opacity:0;top:-9999px';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-    }
-    btn.textContent = '✓ 已複製!';
-    btn.disabled    = true;
-    setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 2000);
-  } catch (err) {
-    alert('請手動複製：\n\n' + text);
+function copyUrl(url, btn) {
+  const done = () => { const old = btn.textContent; btn.textContent = '已複製 ✓'; setTimeout(() => btn.textContent = old, 1500); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(done).catch(() => fallbackCopy(url, done));
+  } else {
+    fallbackCopy(url, done);
   }
+}
+
+function fallbackCopy(text, done) {
+  const ta = document.createElement('textarea');
+  ta.value = text; document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); done(); } catch (e) {}
+  document.body.removeChild(ta);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
@@ -637,14 +581,7 @@ function fmtTime(start, end) {
 function esc(str) {
   return String(str || '')
     .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-}
-
-function emptyState(icon, title, sub) {
-  const el = document.createElement('div');
-  el.className = 'empty-state';
-  el.innerHTML = icon + '<br>' + esc(title) + (sub ? '<p>' + esc(sub) + '</p>' : '');
-  return el;
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function showError(msg) {
