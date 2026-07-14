@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>TripMate</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
       --deep:        #0B2B4E;
@@ -21,18 +23,22 @@
       --border:      #C2D9ED;
       --chosen-bg:   #E3F7F9;
       --divider:     #DCE9F4;
+      --radius:      18px;
+      --radius-sm:   12px;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
     body {
-      font-family: -apple-system, 'Noto Sans TC', 'Helvetica Neue', sans-serif;
+      font-family: 'Nunito', -apple-system, 'Noto Sans TC', 'Helvetica Neue', sans-serif;
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
       font-size: 14px;
       line-height: 1.5;
     }
+
+    h1, .headline { font-family: 'Fraunces', 'Noto Sans TC', serif; }
 
     /* ── Header ───────────────────────────────────────── */
     #header {
@@ -41,21 +47,37 @@
       padding: 14px 16px 0;
     }
     #brand { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-    #brand h1 { font-size: 18px; font-weight: 700; color: #FFFFFF; letter-spacing: -0.3px; }
+    #brand h1 { font-size: 19px; font-weight: 700; color: #FFFFFF; letter-spacing: -0.2px; }
     #brand .wave { font-size: 20px; }
-    #user-line { font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 10px; }
+    #user-line { font-size: 12px; color: rgba(255,255,255,0.65); margin-bottom: 10px; }
 
-    /* ── Nav tabs ─────────────────────────────────────── */
-    #nav { display: flex; gap: 0; }
+    #trip-select-wrap { margin-bottom: 10px; }
+    #trip-select {
+      width: 100%; appearance: none;
+      background: rgba(255,255,255,0.1); color: #fff;
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: var(--radius-sm);
+      padding: 7px 12px; font-size: 13px; font-weight: 700;
+      font-family: inherit;
+    }
+    #trip-select option { color: #000; }
+
+    /* ── Nav pills ────────────────────────────────────── */
+    #nav {
+      display: flex; gap: 4px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 999px; padding: 4px;
+      margin-bottom: 12px;
+    }
     .nav-tab {
-      flex: 1; padding: 9px 0; font-size: 13px; font-weight: 600;
+      flex: 1; padding: 8px 0; font-size: 13px; font-weight: 700;
       text-align: center; cursor: pointer;
-      color: rgba(255,255,255,0.45);
-      border-bottom: 2px solid transparent;
-      transition: color 0.15s, border-color 0.15s;
+      color: rgba(255,255,255,0.55);
+      border-radius: 999px;
+      transition: all 0.15s;
       user-select: none;
     }
-    .nav-tab.active { color: #FFFFFF; border-bottom-color: var(--teal); }
+    .nav-tab.active { color: var(--deep); background: #FFFFFF; }
 
     /* ── States ───────────────────────────────────────── */
     #loading, #error-msg {
@@ -83,22 +105,27 @@
     /* ── Item card ────────────────────────────────────── */
     .card {
       background: var(--card);
-      border-radius: 12px;
+      border-radius: var(--radius);
       border: 1px solid var(--border);
-      margin-bottom: 8px;
+      margin-bottom: 10px;
       overflow: hidden;
     }
-    .card.mission  { border-left: 3px solid var(--coral); }
+    .card.mission  { border-left: 4px solid var(--coral); }
     .card.chosen   { background: var(--chosen-bg); border-color: var(--teal); }
-    .card.alt-item { border-left: 3px solid var(--teal); }
+    .card.alt-item { border-left: 4px solid var(--teal); }
 
-    .card-body { padding: 12px 14px; }
+    .card-cover {
+      width: 100%; height: 120px; object-fit: cover; display: block;
+      background: var(--bg);
+    }
+
+    .card-body { padding: 13px 14px; }
     .card-top  { display: flex; align-items: flex-start; gap: 10px; }
 
     .cat-icon {
       flex-shrink: 0;
       width: 36px; height: 36px;
-      border-radius: 9px;
+      border-radius: var(--radius-sm);
       background: var(--bg);
       display: flex; align-items: center; justify-content: center;
       font-size: 17px;
@@ -108,17 +135,17 @@
 
     .card-info { flex: 1; min-width: 0; }
     .card-title {
-      font-size: 14px; font-weight: 600; margin-bottom: 2px;
+      font-size: 14.5px; font-weight: 700; margin-bottom: 2px;
       word-break: break-word; color: var(--text);
     }
     .card-time  { font-size: 11px; color: var(--muted); margin-bottom: 1px; }
     .card-note  { font-size: 12px; color: #4A6680; margin-top: 5px; white-space: pre-wrap; word-break: break-word; }
-    .card-reward { font-size: 12px; color: var(--coral); font-weight: 600; margin-top: 4px; }
+    .card-reward { font-size: 12px; color: var(--coral); font-weight: 700; margin-top: 4px; }
 
     /* Status pills */
     .pill {
-      display: inline-block; font-size: 10px; font-weight: 700;
-      padding: 2px 7px; border-radius: 20px; margin-left: 5px;
+      display: inline-block; font-size: 10px; font-weight: 800;
+      padding: 2px 8px; border-radius: 20px; margin-left: 5px;
       vertical-align: middle; letter-spacing: 0.2px;
     }
     .pill-done   { background: var(--teal-light); color: #0A7A8A; }
@@ -126,15 +153,16 @@
 
     /* ── Buttons ──────────────────────────────────────── */
     .card-actions {
-      padding: 0 14px 12px;
+      padding: 0 14px 13px;
       display: flex; gap: 8px; flex-wrap: wrap;
     }
     .btn {
       flex: 1; min-width: 110px;
-      padding: 9px 12px;
-      border: none; border-radius: 8px;
-      font-size: 13px; font-weight: 600;
+      padding: 10px 12px;
+      border: none; border-radius: var(--radius-sm);
+      font-size: 13px; font-weight: 700;
       cursor: pointer;
+      font-family: inherit;
       transition: opacity 0.12s, transform 0.1s;
     }
     .btn:active:not(:disabled) { opacity: 0.75; transform: scale(0.98); }
@@ -147,7 +175,7 @@
     .alt-header {
       display: flex; align-items: center; gap: 6px;
       padding: 6px 4px 3px;
-      font-size: 11px; font-weight: 700; color: var(--teal);
+      font-size: 11px; font-weight: 800; color: var(--teal);
       text-transform: uppercase; letter-spacing: 0.5px;
     }
     .alt-divider {
@@ -157,7 +185,7 @@
 
     /* ── Success inline message ───────────────────────── */
     .inline-success {
-      font-size: 13px; font-weight: 600; color: var(--teal);
+      font-size: 13px; font-weight: 700; color: var(--teal);
     }
   </style>
 </head>
@@ -169,6 +197,9 @@
     <h1>TripMate</h1>
   </div>
   <div id="user-line">讀取中…</div>
+  <div id="trip-select-wrap">
+    <select id="trip-select" onchange="onTripChange(this.value)"><option>載入行程中…</option></select>
+  </div>
   <div id="nav">
     <div class="nav-tab active" data-tab="today" onclick="switchTab('today')">今日行程</div>
     <div class="nav-tab"        data-tab="missions" onclick="switchTab('missions')">任務</div>
@@ -189,14 +220,16 @@ const CONFIG = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const EMOJI = {
-  '交通':'✈️','景點':'🏛️','餐廳':'🍽️','購物':'🛍️',
-  '住宿':'🏨','備註':'📝','待辦':'📋','任務':'🎯'
+  'Transportation':'✈️','Attraction':'🏛️','Restaurant':'🍽️','Shopping':'🛍️',
+  'Accommodation':'🏨','Note':'📝','Task':'📋','Mission':'🎯'
 };
 
 let currentTab   = 'today';
 let currentUser  = null;
+let currentTrip  = null;
 let allItems     = [];
 let missionParam = null;
+let dateParam    = null;
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 
@@ -209,11 +242,12 @@ async function init() {
     currentUser   = { userId: profile.userId, displayName: profile.displayName };
     document.getElementById('user-line').textContent = profile.displayName;
 
-    const params    = new URLSearchParams(window.location.search);
-    missionParam    = params.get('mission');
-    const dateParam = params.get('date') || todayStr();
+    const params  = new URLSearchParams(window.location.search);
+    missionParam  = params.get('mission');
+    dateParam     = params.get('date') || todayStr();
+    const tripQS  = params.get('trip');
 
-    await loadTimeline(dateParam);
+    await loadTrips(tripQS);
     if (missionParam) setTimeout(() => scrollToMission(missionParam), 350);
 
   } catch (err) {
@@ -223,16 +257,50 @@ async function init() {
 
 // ── Fetch ─────────────────────────────────────────────────────────────────────
 
+async function loadTrips(preferredTrip) {
+  try {
+    const userId = currentUser.userId;
+    const url = CONFIG.gasUrl + '?action=getTrips&userId=' + encodeURIComponent(userId);
+    const data = await fetch(url).then(r => r.json());
+    if (data.error) throw new Error(data.error);
+
+    const sel = document.getElementById('trip-select');
+    const trips = data.trips || [];
+    if (!trips.length) {
+      showError('尚未設定任何行程。');
+      return;
+    }
+    sel.innerHTML = trips.map(t => '<option value="' + esc(t['Trip']) + '">' + esc(t['Trip']) + '</option>').join('');
+
+    currentTrip = (preferredTrip && trips.some(t => t['Trip'] === preferredTrip)) ? preferredTrip
+      : (trips.some(t => t['Trip'] === data.activeTrip) ? data.activeTrip : trips[0]['Trip']);
+    sel.value = currentTrip;
+
+    await loadTimeline(dateParam);
+  } catch (err) {
+    showError('無法載入行程列表: ' + err.message);
+  }
+}
+
+async function onTripChange(trip) {
+  currentTrip = trip;
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('timeline').style.display = 'none';
+  await loadTimeline(dateParam);
+}
+
 async function loadTimeline(date) {
   try {
     const userId = currentUser ? currentUser.userId : '';
-    const url  = CONFIG.gasUrl + '?action=getTimeline&date=' + date + '&userId=' + encodeURIComponent(userId);
+    const url  = CONFIG.gasUrl + '?action=getTimeline&date=' + date +
+                 '&trip=' + encodeURIComponent(currentTrip || '') +
+                 '&userId=' + encodeURIComponent(userId);
     const data = await fetch(url).then(r => r.json());
     if (data.error) throw new Error(data.error);
 
     allItems = data.items || [];
     document.getElementById('user-line').textContent =
-      (data.tripName ? data.tripName + ' · ' : '') +
+      (data.trip ? data.trip + ' · ' : '') +
       date.replace(/\//g, '-') +
       '  (' + (currentUser ? currentUser.displayName : '') + ')';
 
@@ -314,6 +382,7 @@ function buildCard(item, inAltGroup) {
   const timeStr   = fmtTime(item['Start Time'], item['End Time']);
   const note      = (item['Note']   || '').trim();
   const reward    = (item['Reward'] || '').trim();
+  const cover     = (item['Cover']  || '').trim();
 
   const statusPill = isDone
     ? '<span class="pill pill-done">✓ 完成</span>'
@@ -327,11 +396,12 @@ function buildCard(item, inAltGroup) {
   if (rowIndex) card.dataset.rowIndex = rowIndex;
 
   card.innerHTML =
+    (cover ? '<img class="card-cover" src="' + esc(cover) + '" loading="lazy" alt="">' : '') +
     '<div class="card-body">' +
       '<div class="card-top">' +
         '<div class="cat-icon">' + emoji + '</div>' +
         '<div class="card-info">' +
-          '<div class="card-title">' + esc(item['Location'] || '') + statusPill + '</div>' +
+          '<div class="card-title">' + esc(item['Item'] || '') + statusPill + '</div>' +
           (timeStr ? '<div class="card-time">🕐 ' + timeStr + '</div>' : '') +
           (note    ? '<div class="card-note">'   + esc(note)   + '</div>' : '') +
           (reward  ? '<div class="card-reward">🎁 ' + esc(reward) + '</div>' : '') +
@@ -387,10 +457,11 @@ async function completeMission(rowIndex, btn) {
   try {
     const result = await callPost({ action: 'completeMission', rowIndex, userId: currentUser.userId });
     if (result.ok) {
+      const card = btn.closest('.card'); // capture before innerHTML detaches btn from the DOM
       const actionsEl = btn.closest('.card-actions');
       actionsEl.innerHTML = '<span class="inline-success">✓ 任務完成！</span>';
-      btn.closest('.card').querySelector('.pill-active').outerHTML =
-        '<span class="pill pill-done">✓ 完成</span>';
+      const activePill = card.querySelector('.pill-active');
+      if (activePill) activePill.outerHTML = '<span class="pill pill-done">✓ 完成</span>';
     } else {
       btn.disabled = false; btn.textContent = '完成任務';
       alert('錯誤: ' + (result.error || '請稍後再試'));
