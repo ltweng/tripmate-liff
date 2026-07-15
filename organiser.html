@@ -231,15 +231,25 @@ let pendingSend   = null; // rowIndex awaiting second confirm tap
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 
+// Wraps a promise with a deadline so a hung liff.init()/fetch() surfaces a
+// visible error instead of leaving the page stuck on the static "載入中…"
+// forever with no signal of what actually failed.
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(label + ' 超過 ' + (ms / 1000) + ' 秒未回應，請檢查網路連線')), ms))
+  ]);
+}
+
 async function init() {
   try {
-    await liff.init({ liffId: CONFIG.liffId });
+    await withTimeout(liff.init({ liffId: CONFIG.liffId }), 15000, 'liff.init()');
     if (!liff.isLoggedIn()) { liff.login(); return; }
 
-    const profile = await liff.getProfile();
+    const profile = await withTimeout(liff.getProfile(), 10000, 'liff.getProfile()');
     currentUser   = { userId: profile.userId, displayName: profile.displayName };
 
-    await loadTrips();
+    await withTimeout(loadTrips(), 10000, 'getTrips API');
   } catch (err) {
     showError('初始化失敗: ' + err.message);
   }
