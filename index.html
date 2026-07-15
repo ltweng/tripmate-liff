@@ -38,131 +38,110 @@
       line-height: 1.5;
     }
 
-    h1, .headline { font-family: 'Fraunces', 'Noto Sans TC', serif; }
+    h1, h2, .headline { font-family: 'Fraunces', 'Noto Sans TC', serif; }
 
     /* ── Header ───────────────────────────────────────── */
     #header {
       position: sticky; top: 0; z-index: 20;
       background: var(--deep);
-      padding: 14px 16px 0;
+      padding: 14px 16px;
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
     }
-    #brand { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-    #brand h1 { font-size: 19px; font-weight: 700; color: #FFFFFF; letter-spacing: -0.2px; }
-    #brand .wave { font-size: 20px; }
-    #user-line { font-size: 12px; color: rgba(255,255,255,0.65); margin-bottom: 10px; }
+    #brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    #brand h1 { font-size: 18px; font-weight: 700; color: #FFFFFF; letter-spacing: -0.2px; white-space: nowrap; }
+    #brand .wave { font-size: 20px; flex-shrink: 0; }
+    #view-title { font-size: 12px; color: rgba(255,255,255,0.65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #hamburger {
+      flex-shrink: 0; width: 36px; height: 36px; border-radius: 10px;
+      background: rgba(255,255,255,0.1); border: none; color: #fff; font-size: 18px; cursor: pointer;
+    }
+    #back-btn {
+      flex-shrink: 0; background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; padding: 0 4px;
+    }
 
-    #trip-select-wrap { margin-bottom: 10px; }
-    #trip-select {
-      width: 100%; appearance: none;
-      background: rgba(255,255,255,0.1); color: #fff;
-      border: 1px solid rgba(255,255,255,0.25);
-      border-radius: var(--radius-sm);
-      padding: 7px 12px; font-size: 13px; font-weight: 700;
-      font-family: inherit;
+    /* ── Drawer ───────────────────────────────────────── */
+    #drawer-backdrop {
+      position: fixed; inset: 0; background: rgba(11,35,66,0.4);
+      opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 29;
     }
-    #trip-select option { color: #000; }
+    #drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+    #drawer {
+      position: fixed; top: 0; right: 0; bottom: 0; width: 78%; max-width: 300px;
+      background: var(--deep); z-index: 30; padding: 20px 0;
+      transform: translateX(100%); transition: transform 0.22s ease-out;
+      overflow-y: auto;
+    }
+    #drawer.open { transform: translateX(0); }
+    .drawer-header { padding: 0 20px 16px; color: #fff; }
+    .drawer-header .name { font-weight: 700; font-size: 15px; }
+    .drawer-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 13px 20px; color: rgba(255,255,255,0.85); font-weight: 700; font-size: 14px;
+      cursor: pointer; user-select: none;
+    }
+    .drawer-item:active { background: rgba(255,255,255,0.08); }
+    .drawer-item .emoji { font-size: 18px; width: 22px; text-align: center; }
+    .drawer-item.active { background: rgba(255,255,255,0.1); color: #fff; }
 
-    /* ── Nav pills ────────────────────────────────────── */
-    #nav {
-      display: flex; gap: 4px;
-      background: rgba(255,255,255,0.08);
-      border-radius: 999px; padding: 4px;
-      margin-bottom: 12px;
-    }
-    .nav-tab {
-      flex: 1; padding: 8px 0; font-size: 13px; font-weight: 700;
-      text-align: center; cursor: pointer;
-      color: rgba(255,255,255,0.55);
-      border-radius: 999px;
-      transition: all 0.15s;
-      user-select: none;
-    }
-    .nav-tab.active { color: var(--deep); background: #FFFFFF; }
-
-    /* ── States ───────────────────────────────────────── */
-    #loading, #error-msg {
+    /* ── Shared states ────────────────────────────────── */
+    #loading, .no-items {
       text-align: center; padding: 64px 24px; font-size: 14px; color: var(--muted);
     }
-    #error-msg { color: var(--coral); }
-
+    .no-items p { margin-top: 6px; font-size: 12px; }
+    .view-loading { text-align: center; padding: 48px 0; }
     .spinner {
       width: 32px; height: 32px; margin: 0 auto 14px;
-      border: 3px solid var(--divider);
-      border-top-color: var(--teal);
-      border-radius: 50%;
+      border: 3px solid var(--divider); border-top-color: var(--teal); border-radius: 50%;
       animation: spin 0.75s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+    #app { padding: 14px 14px 40px; }
 
-    /* ── Timeline ─────────────────────────────────────── */
-    #timeline { padding: 12px 12px 32px; }
-
-    .no-items {
-      text-align: center; padding: 56px 16px; color: var(--muted); font-size: 14px;
+    /* ── Pill tabs / filter chips (shared) ───────────── */
+    .pill-tabs {
+      display: flex; gap: 4px; background: var(--card); border: 1px solid var(--border);
+      border-radius: 999px; padding: 4px; margin-bottom: 12px; overflow-x: auto;
     }
-    .no-items p { margin-top: 6px; font-size: 12px; }
-
-    /* ── Item card ────────────────────────────────────── */
-    .card {
-      background: var(--card);
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      margin-bottom: 10px;
-      overflow: hidden;
+    .pill-tab {
+      flex: 1; min-width: 64px; padding: 8px 6px; font-size: 12.5px; font-weight: 700;
+      text-align: center; border-radius: 999px; color: var(--muted); cursor: pointer; white-space: nowrap;
     }
+    .pill-tab.active { background: var(--deep); color: #fff; }
+    .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+    .chip {
+      font-size: 12px; font-weight: 700; padding: 6px 13px; border-radius: 999px;
+      background: var(--card); border: 1px solid var(--border); color: var(--muted); cursor: pointer;
+    }
+    .chip.active { background: var(--deep); color: #fff; border-color: var(--deep); }
+
+    /* ── Card (item / mission) ───────────────────────── */
+    .card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 10px; overflow: hidden; }
     .card.mission  { border-left: 4px solid var(--coral); }
     .card.chosen   { background: var(--chosen-bg); border-color: var(--teal); }
     .card.alt-item { border-left: 4px solid var(--teal); }
-
-    .card-cover {
-      width: 100%; height: 120px; object-fit: cover; display: block;
-      background: var(--bg);
-    }
-
+    .card-cover { width: 100%; height: 120px; object-fit: cover; display: block; background: var(--bg); }
     .card-body { padding: 13px 14px; }
     .card-top  { display: flex; align-items: flex-start; gap: 10px; }
-
     .cat-icon {
-      flex-shrink: 0;
-      width: 36px; height: 36px;
-      border-radius: var(--radius-sm);
-      background: var(--bg);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 17px;
+      flex-shrink: 0; width: 36px; height: 36px; border-radius: var(--radius-sm); background: var(--bg);
+      display: flex; align-items: center; justify-content: center; font-size: 17px;
     }
-    .card.mission .cat-icon  { background: var(--coral-light); }
-    .card.chosen  .cat-icon  { background: rgba(27,175,191,0.12); }
-
+    .card.mission .cat-icon { background: var(--coral-light); }
+    .card.chosen  .cat-icon { background: rgba(27,175,191,0.12); }
     .card-info { flex: 1; min-width: 0; }
-    .card-title {
-      font-size: 14.5px; font-weight: 700; margin-bottom: 2px;
-      word-break: break-word; color: var(--text);
-    }
+    .card-title { font-size: 14.5px; font-weight: 700; margin-bottom: 2px; word-break: break-word; }
     .card-time  { font-size: 11px; color: var(--muted); margin-bottom: 1px; }
     .card-note  { font-size: 12px; color: #4A6680; margin-top: 5px; white-space: pre-wrap; word-break: break-word; }
     .card-reward { font-size: 12px; color: var(--coral); font-weight: 700; margin-top: 4px; }
-
-    /* Status pills */
-    .pill {
-      display: inline-block; font-size: 10px; font-weight: 800;
-      padding: 2px 8px; border-radius: 20px; margin-left: 5px;
-      vertical-align: middle; letter-spacing: 0.2px;
-    }
+    .pill { display: inline-block; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 20px; margin-left: 5px; vertical-align: middle; }
     .pill-done   { background: var(--teal-light); color: #0A7A8A; }
     .pill-active { background: var(--coral-light); color: #B04530; }
-
-    /* ── Buttons ──────────────────────────────────────── */
-    .card-actions {
-      padding: 0 14px 13px;
-      display: flex; gap: 8px; flex-wrap: wrap;
-    }
+    .pill-muted  { background: var(--border); color: var(--muted); }
+    .trip-tag { color: #fff; }
+    .card-actions { padding: 0 14px 13px; display: flex; gap: 8px; flex-wrap: wrap; }
     .btn {
-      flex: 1; min-width: 110px;
-      padding: 10px 12px;
-      border: none; border-radius: var(--radius-sm);
-      font-size: 13px; font-weight: 700;
-      cursor: pointer;
-      font-family: inherit;
+      flex: 1; min-width: 110px; padding: 10px 12px; border: none; border-radius: var(--radius-sm);
+      font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
       transition: opacity 0.12s, transform 0.1s;
     }
     .btn:active:not(:disabled) { opacity: 0.75; transform: scale(0.98); }
@@ -170,50 +149,125 @@
     .btn-coral  { background: var(--coral); color: #fff; }
     .btn-teal   { background: var(--teal);  color: #fff; }
     .btn-ghost  { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+    .btn-block  { width: 100%; }
+    .alt-header { display: flex; align-items: center; gap: 6px; padding: 6px 4px 3px; font-size: 11px; font-weight: 800; color: var(--teal); text-transform: uppercase; letter-spacing: 0.5px; }
+    .alt-divider { border: none; border-top: 1px solid var(--divider); margin: 4px 0; }
+    .inline-success { font-size: 13px; font-weight: 700; color: var(--teal); }
 
-    /* ── Alt group wrapper ────────────────────────────── */
-    .alt-header {
-      display: flex; align-items: center; gap: 6px;
-      padding: 6px 4px 3px;
-      font-size: 11px; font-weight: 800; color: var(--teal);
-      text-transform: uppercase; letter-spacing: 0.5px;
+    /* ── Section / day headers ────────────────────────── */
+    .section-title { font-size: 15px; font-weight: 700; margin: 4px 0 10px; font-family: 'Fraunces', serif; }
+    .day-header {
+      display: flex; align-items: center; gap: 8px; margin: 14px 0 8px; cursor: pointer; user-select: none;
     }
-    .alt-divider {
-      border: none; border-top: 1px solid var(--divider);
-      margin: 4px 0;
+    .day-circle {
+      width: 26px; height: 26px; border-radius: 50%; background: var(--deep); color: #fff;
+      font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     }
+    .day-label { font-size: 13px; font-weight: 700; color: var(--text); flex: 1; }
+    .day-toggle { font-size: 11px; color: var(--muted); }
+    .day-items.collapsed { display: none; }
 
-    /* ── Success inline message ───────────────────────── */
-    .inline-success {
-      font-size: 13px; font-weight: 700; color: var(--teal);
+    /* ── Home ─────────────────────────────────────────── */
+    .hero-card {
+      background: linear-gradient(135deg, var(--deep), var(--ocean));
+      border-radius: var(--radius); padding: 20px; color: #fff; margin-bottom: 14px;
     }
+    .hero-trip-name { font-size: 20px; font-weight: 700; font-family: 'Fraunces', serif; }
+    .hero-meta { font-size: 12px; color: rgba(255,255,255,0.75); margin-top: 4px; }
+    .countdown-badge {
+      display: inline-block; margin-top: 10px; background: rgba(255,255,255,0.15);
+      padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 700;
+    }
+    #home-trip-select {
+      width: 100%; margin-bottom: 12px; padding: 9px 12px; border-radius: var(--radius-sm);
+      border: 1px solid var(--border); background: var(--card); font-size: 13px; font-weight: 700; font-family: inherit;
+    }
+    .member-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; }
+    .avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--border); object-fit: cover; flex-shrink: 0; }
+    .stub-card { background: var(--card); border: 1px dashed var(--border); border-radius: var(--radius); padding: 20px; text-align: center; color: var(--muted); font-size: 13px; }
+
+    /* ── Trip cards (Trips overview) ──────────────────── */
+    .trip-card {
+      border-radius: var(--radius); overflow: hidden; margin-bottom: 12px; border: 1px solid var(--border);
+      background: var(--card); cursor: pointer;
+    }
+    .trip-card-cover { height: 90px; background: #B4CDE6; background-size: cover; background-position: center; }
+    .trip-card-body { padding: 12px 14px; }
+    .trip-card-name { font-weight: 700; font-size: 15px; }
+    .trip-card-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    /* ── Roster ───────────────────────────────────────── */
+    .roster-card { display: flex; align-items: center; gap: 12px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px; }
+    .roster-avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--border); object-fit: cover; flex-shrink: 0; }
+    .roster-name { font-weight: 700; font-size: 14px; }
+    .tag-row { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; }
+    .tag { font-size: 10px; font-weight: 700; background: var(--bg); color: var(--muted); padding: 2px 8px; border-radius: 999px; }
+
+    /* ── Achievements ─────────────────────────────────── */
+    .achv-card { text-align: center; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px 16px; color: var(--muted); }
+
+    /* ── Packing list ─────────────────────────────────── */
+    .pack-category { margin-bottom: 14px; }
+    .pack-category-title { font-weight: 700; font-size: 13px; margin-bottom: 6px; color: var(--deep-mid); }
+    .pack-item { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 13px; color: var(--text); }
+    .pack-item input { width: 16px; height: 16px; }
+    .pack-note { font-size: 11px; color: var(--muted); margin: -4px 0 10px; }
+
+    /* ── Onboarding ───────────────────────────────────── */
+    #onboarding-wrap { padding: 40px 20px; max-width: 420px; margin: 0 auto; }
+    .ob-title { font-size: 20px; font-weight: 700; margin-bottom: 10px; font-family: 'Fraunces', serif; }
+    .ob-text { font-size: 14px; color: var(--muted); margin-bottom: 18px; line-height: 1.6; }
+    .ob-input {
+      width: 100%; padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+      font-size: 15px; margin-bottom: 14px; font-family: inherit;
+    }
+    .agreement-item {
+      display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--divider); font-size: 13.5px;
+    }
+    .agreement-item input { width: 18px; height: 18px; margin-top: 1px; flex-shrink: 0; }
+    .ob-nudge { color: var(--coral); font-size: 13px; font-weight: 700; margin-top: 10px; text-align: center; }
+
+    /* ── Profile ──────────────────────────────────────── */
+    .profile-header { text-align: center; padding: 20px 0 24px; }
+    .profile-avatar { width: 84px; height: 84px; border-radius: 50%; object-fit: cover; background: var(--border); margin: 0 auto 10px; }
+    .profile-name { font-size: 18px; font-weight: 700; }
   </style>
 </head>
 <body>
 
 <div id="header">
   <div id="brand">
+    <button id="back-btn" style="display:none" onclick="handleBack()">←</button>
     <span class="wave">🌊</span>
-    <h1>TripMate</h1>
+    <div>
+      <h1>TripMate</h1>
+      <div id="view-title"></div>
+    </div>
   </div>
-  <div id="user-line">讀取中…</div>
-  <div id="trip-select-wrap">
-    <select id="trip-select" onchange="onTripChange(this.value)"><option>載入行程中…</option></select>
-  </div>
-  <div id="nav">
-    <div class="nav-tab active" data-tab="today" onclick="switchTab('today')">今日行程</div>
-    <div class="nav-tab"        data-tab="missions" onclick="switchTab('missions')">任務</div>
-  </div>
+  <button id="hamburger" onclick="toggleDrawer()" style="display:none">☰</button>
 </div>
 
-<div id="loading"><div class="spinner"></div>載入行程中…</div>
-<div id="error-msg" style="display:none"></div>
-<div id="timeline"  style="display:none"></div>
+<div id="drawer-backdrop" onclick="closeDrawer()"></div>
+<div id="drawer">
+  <div class="drawer-header">
+    <div class="name" id="drawer-name"></div>
+  </div>
+  <div class="drawer-item" data-view="home" onclick="navigateTo('home')"><span class="emoji">🏠</span>首頁 Homepage</div>
+  <div class="drawer-item" data-view="trips" onclick="navigateTo('trips')"><span class="emoji">🧳</span>行程 Trips</div>
+  <div class="drawer-item" data-view="roster" onclick="navigateTo('roster')"><span class="emoji">👥</span>成員 Roster</div>
+  <div class="drawer-item" data-view="missions" onclick="navigateTo('missions')"><span class="emoji">🎯</span>任務 Missions</div>
+  <div class="drawer-item" data-view="achievements" onclick="navigateTo('achievements')"><span class="emoji">🏅</span>成就 Achievements</div>
+  <div class="drawer-item" data-view="packing" onclick="navigateTo('packing')"><span class="emoji">🎒</span>打包清單 Packing List</div>
+  <div class="drawer-item" data-view="profile" onclick="navigateTo('profile')"><span class="emoji">🙂</span>個人檔案 Profile</div>
+</div>
+
+<div id="loading"><div class="spinner"></div>載入中…</div>
+<div id="app" style="display:none"></div>
 
 <script>
 // ── CONFIG — only non-secret values live here ────────────────────────────────
 const CONFIG = {
-  liffId: '2010468064-4RvCpshe',
+  liffId: '2010468064-4RvCpshe', // participant LIFF app's own ID
   gasUrl: 'https://script.google.com/macros/s/AKfycbx4yqj479yhsIAOUBkIWFKNvlKFnTCVZQ18uyiaxXtoGXJURpZ0bw26zgBsiqYu2rjQ/exec'
   // No secret here — GAS validates your LINE userId instead (set by liff.getProfile)
 };
@@ -224,156 +278,643 @@ const EMOJI = {
   'Accommodation':'🏨','Note':'📝','Task':'📋','Mission':'🎯'
 };
 
-let currentTab   = 'today';
-let currentUser  = null;
-let currentTrip  = null;
-let allItems     = [];
-let missionParam = null;
-let dateParam    = null;
+const VIEW_TITLES = {
+  home: '首頁', trips: '行程', tripDetail: '', roster: '成員', missions: '任務',
+  achievements: '成就', packing: '打包清單', profile: '個人檔案', onboarding: ''
+};
 
-// ── Init ─────────────────────────────────────────────────────────────────────
+const TRIP_TABS = [
+  ['overview', '總覽'], ['itinerary', '行程'], ['locations', '地點'],
+  ['mission', '任務'], ['packing', '打包'], ['expense', '花費']
+];
+
+const PACKING_MASTER = [
+  { cat: '文件', items: ['護照', '住宿預約確認紀錄', '簽證', '入境登記', '電子機票', '登機證', '車程預訂'] },
+  { cat: '衣物', items: ['T-shirt', '襯衫', '內衣褲', '長褲', '短褲', '裙子', '外套', '大衣', '泳衣', '泳帽', '泳鏡', '帽子', '手套', '圍巾', '鞋子', '室內拖', '室外脫', '太陽眼鏡', '毛巾衣'] },
+  { cat: '電器', items: ['平板', '平板充電器', '手機', '手機充電器', '筆電', '筆電充電器', '行充', '耳機', '行李秤', '電池', '轉接頭'] },
+  { cat: '沐浴用品', items: ['洗髮乳', '潤髮乳', '洗面乳', '面膜', '化妝水', '面霜', '沐浴乳', '乳液', '浴巾', '牙刷', '牙膏', '牙線', '護唇膏', '棉花棒'] },
+  { cat: '潛水用品', items: ['濕衣', '面鏡', '套鞋', '蛙鞋', '潛水電腦表', '潛水電腦表充電器', '潛水手電筒'] },
+  { cat: '雜物', items: ['OK蹦', '梳子', '髮圈、夾子', '衛生紙', '濕紙巾', '頸枕', '防曬乳', '購物袋', '塑膠袋', '夾鏈袋'] },
+  { cat: '藥品', items: ['暈船藥', '止痛藥', '感冒藥'] }
+];
+
+const DEFAULT_TRIP_COVER = '#B4CDE6';
+const TRIP_COLOR_PALETTE = ['#1BAFBF', '#D95F42', '#5B8DBF', '#7A6FD9', '#3FAE7A', '#C9A227'];
+
+// ── Global state ──────────────────────────────────────────────────────────────
+let currentUser  = null;
+let currentView  = 'onboarding';
+let currentTrip  = null;      // Trip code, when currentView === 'tripDetail'
+let currentTripTab = 'overview';
+let missionParam = null;
+
+let myTrips = [];             // cache, from getMyTrips
+let rosterCache = null;       // cache, from getRoster
+let tripItemsCache = {};      // trip -> items (getTimeline scope=all)
+let missionsCache = null;     // cache, from getMyMissions
+
+// Onboarding state
+let ob = { stage: 1, trip: null, tripInput: '', clauses: [], nicknameDraft: '', error: '' };
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
+// Wraps a promise with a deadline so a hung liff.init()/fetch() surfaces a
+// visible error instead of leaving the page stuck on the static "載入中…"
+// forever with no signal of what actually failed.
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(label + ' 超過 ' + (ms / 1000) + ' 秒未回應，請檢查網路連線')), ms))
+  ]);
+}
 
 async function init() {
   try {
-    await liff.init({ liffId: CONFIG.liffId });
+    await withTimeout(liff.init({ liffId: CONFIG.liffId }), 15000, 'liff.init()');
     if (!liff.isLoggedIn()) { liff.login(); return; }
 
-    const profile = await liff.getProfile();
-    currentUser   = { userId: profile.userId, displayName: profile.displayName };
-    document.getElementById('user-line').textContent = profile.displayName;
+    const profile = await withTimeout(liff.getProfile(), 10000, 'liff.getProfile()');
+    currentUser = { userId: profile.userId, displayName: profile.displayName };
+    document.getElementById('drawer-name').textContent = profile.displayName;
 
-    const params  = new URLSearchParams(window.location.search);
-    missionParam  = params.get('mission');
-    dateParam     = params.get('date') || todayStr();
-    const tripQS  = params.get('trip');
+    const params = new URLSearchParams(window.location.search);
+    missionParam = params.get('mission');
+    const qView  = params.get('view');
+    const qTrip  = params.get('trip');
+    const qTab   = params.get('tab');
 
-    await loadTrips(tripQS);
-    if (missionParam) setTimeout(() => scrollToMission(missionParam), 350);
+    await withTimeout(refreshMyTrips(), 10000, 'getMyTrips API');
 
-  } catch (err) {
-    showError('初始化失敗: ' + err.message);
-  }
-}
-
-// ── Fetch ─────────────────────────────────────────────────────────────────────
-
-async function loadTrips(preferredTrip) {
-  try {
-    const userId = currentUser.userId;
-    const url = CONFIG.gasUrl + '?action=getTrips&userId=' + encodeURIComponent(userId);
-    const data = await fetch(url).then(r => r.json());
-    if (data.error) throw new Error(data.error);
-
-    const sel = document.getElementById('trip-select');
-    const trips = data.trips || [];
-    if (!trips.length) {
-      showError('尚未設定任何行程。');
-      return;
+    if (!myTrips.length) {
+      startOnboarding();
+    } else if (missionParam) {
+      navigateTo('missions');
+      setTimeout(() => scrollToMission(missionParam), 400);
+    } else if (qView && qView !== 'onboarding') {
+      navigateTo(qView, { trip: qTrip, tab: qTab });
+    } else {
+      navigateTo('home');
     }
-    sel.innerHTML = trips.map(t => '<option value="' + esc(t['Trip']) + '">' + esc(t['Trip']) + '</option>').join('');
-
-    currentTrip = (preferredTrip && trips.some(t => t['Trip'] === preferredTrip)) ? preferredTrip
-      : (trips.some(t => t['Trip'] === data.activeTrip) ? data.activeTrip : trips[0]['Trip']);
-    sel.value = currentTrip;
-
-    await loadTimeline(dateParam);
   } catch (err) {
-    showError('無法載入行程列表: ' + err.message);
+    document.getElementById('loading').innerHTML = '<div class="no-items">初始化失敗: ' + esc(err.message) + '</div>';
   }
 }
 
-async function onTripChange(trip) {
-  currentTrip = trip;
-  document.getElementById('loading').style.display = 'block';
-  document.getElementById('timeline').style.display = 'none';
-  await loadTimeline(dateParam);
+async function refreshMyTrips() {
+  const res = await apiGet('getMyTrips');
+  myTrips = res.trips || [];
 }
 
-async function loadTimeline(date) {
-  try {
-    const userId = currentUser ? currentUser.userId : '';
-    const url  = CONFIG.gasUrl + '?action=getTimeline&date=' + date +
-                 '&trip=' + encodeURIComponent(currentTrip || '') +
-                 '&userId=' + encodeURIComponent(userId);
-    const data = await fetch(url).then(r => r.json());
-    if (data.error) throw new Error(data.error);
-
-    allItems = data.items || [];
-    document.getElementById('user-line').textContent =
-      (data.trip ? data.trip + ' · ' : '') +
-      date.replace(/\//g, '-') +
-      '  (' + (currentUser ? currentUser.displayName : '') + ')';
-
-    render();
-  } catch (err) {
-    showError('無法載入行程: ' + err.message);
-  }
+async function ensureRoster(force) {
+  if (rosterCache && !force) return rosterCache;
+  const res = await apiGet('getRoster');
+  rosterCache = res.roster || [];
+  return rosterCache;
 }
 
-async function callPost(body) {
+async function ensureTripItems(trip, force) {
+  if (tripItemsCache[trip] && !force) return tripItemsCache[trip];
+  const res = await apiGet('getTimeline', { trip, scope: 'all' });
+  tripItemsCache[trip] = res.items || [];
+  return tripItemsCache[trip];
+}
+
+async function ensureMissions(force) {
+  if (missionsCache && !force) return missionsCache;
+  const res = await apiGet('getMyMissions');
+  missionsCache = res.missions || [];
+  return missionsCache;
+}
+
+// ── API helpers ───────────────────────────────────────────────────────────────
+
+async function apiGet(action, params) {
+  const qs = new URLSearchParams(Object.assign({ action, userId: currentUser ? currentUser.userId : '' }, params || {}));
+  const res = await fetch(CONFIG.gasUrl + '?' + qs.toString());
+  return res.json();
+}
+
+async function apiPost(action, body) {
   const res = await fetch(CONFIG.gasUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...body, userId: currentUser ? currentUser.userId : '' })
+    body: JSON.stringify(Object.assign({ action, userId: currentUser ? currentUser.userId : '' }, body || {}))
   });
   return res.json();
 }
 
-// ── Tabs ──────────────────────────────────────────────────────────────────────
+// ── Navigation / router ────────────────────────────────────────────────────────
 
-function switchTab(tab) {
-  currentTab = tab;
-  document.querySelectorAll('.nav-tab').forEach(el => {
-    el.classList.toggle('active', el.dataset.tab === tab);
-  });
+function navigateTo(view, opts) {
+  opts = opts || {};
+  currentView = view;
+  if (view === 'tripDetail') {
+    if (opts.trip) currentTrip = opts.trip;
+    currentTripTab = opts.tab || 'overview';
+  }
+  closeDrawer();
+
+  const qs = new URLSearchParams();
+  qs.set('view', view);
+  if (view === 'tripDetail' && currentTrip) { qs.set('trip', currentTrip); qs.set('tab', currentTripTab); }
+  history.replaceState(null, '', '?' + qs.toString());
+
   render();
 }
 
-// ── Render ────────────────────────────────────────────────────────────────────
+function handleBack() {
+  navigateTo('trips');
+}
 
-function render() {
-  const el = document.getElementById('timeline');
+function toggleDrawer() {
+  document.getElementById('drawer').classList.toggle('open');
+  document.getElementById('drawer-backdrop').classList.toggle('open');
+}
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawer-backdrop').classList.remove('open');
+}
+
+function updateHeader() {
+  const hamburger = document.getElementById('hamburger');
+  const backBtn   = document.getElementById('back-btn');
+  const titleEl   = document.getElementById('view-title');
+  document.querySelectorAll('.drawer-item').forEach(el => el.classList.toggle('active', el.dataset.view === currentView));
+
+  if (currentView === 'onboarding') {
+    hamburger.style.display = 'none';
+    backBtn.style.display = 'none';
+    titleEl.textContent = '';
+    return;
+  }
+  hamburger.style.display = 'block';
+  backBtn.style.display = currentView === 'tripDetail' ? 'block' : 'none';
+  titleEl.textContent = currentView === 'tripDetail' ? (currentTrip || '') : (VIEW_TITLES[currentView] || '');
+}
+
+// ── Render dispatcher ───────────────────────────────────────────────────────────
+
+async function render() {
   document.getElementById('loading').style.display = 'none';
-  el.style.display = 'block';
+  const app = document.getElementById('app');
+  app.style.display = 'block';
+  updateHeader();
 
-  let items = currentTab === 'missions'
-    ? allItems.filter(it => it['Is Mission'])
-    : allItems;
+  if (currentView === 'onboarding') { renderOnboarding(); return; }
 
-  if (!items.length) {
-    el.innerHTML = '<div class="no-items">' +
-      (currentTab === 'today'
-        ? '☀️ 今日沒有行程<p>享受自由時光吧！</p>'
-        : '🎯 沒有任務<p>目前沒有待完成的任務</p>') +
-      '</div>';
+  app.innerHTML = '<div class="view-loading"><div class="spinner"></div></div>';
+  try {
+    if (currentView === 'home')         return await renderHome();
+    if (currentView === 'trips')        return renderTrips();
+    if (currentView === 'tripDetail')   return await renderTripDetail();
+    if (currentView === 'roster')       return await renderRoster();
+    if (currentView === 'missions')     return await renderMissions();
+    if (currentView === 'achievements') return renderAchievements();
+    if (currentView === 'packing')      return renderPackingGlobal();
+    if (currentView === 'profile')      return await renderProfile();
+  } catch (err) {
+    app.innerHTML = '<div class="no-items">載入失敗<p>' + esc(err.message) + '</p></div>';
+  }
+}
+
+// ── Onboarding (Landing page) ──────────────────────────────────────────────────
+
+function startOnboarding() {
+  ob = { stage: 1, trip: null, tripInput: '', clauses: [], nicknameDraft: '', error: '' };
+  navigateTo('onboarding');
+}
+
+function renderOnboarding() {
+  const app = document.getElementById('app');
+  const wrap = document.createElement('div');
+  wrap.id = 'onboarding-wrap';
+
+  if (ob.stage === 1) {
+    wrap.innerHTML =
+      '<div class="ob-title">加入行程 🌊</div>' +
+      '<div class="ob-text">請輸入行程通關密語（由主辦人提供）</div>' +
+      '<input class="ob-input" id="ob-passcode" placeholder="例如 Summer26" value="' + esc(ob.tripInput) + '">' +
+      (ob.error ? '<div class="ob-nudge">這個行程尚不存在，請聯絡活動主持人預約行程！</div>' : '') +
+      '<button class="btn btn-coral btn-block" onclick="obSubmitPasscode()">加入</button>';
+    app.innerHTML = '';
+    app.appendChild(wrap);
     return;
   }
 
-  el.innerHTML = '';
+  if (ob.stage === 3) {
+    wrap.innerHTML =
+      '<div class="ob-title">您好，' + esc(currentUser.displayName) + '</div>' +
+      '<div class="ob-text">您目前的使用者名稱為「' + esc(currentUser.displayName) + '」，請問您想以這個名稱行走江湖嗎？</div>' +
+      '<button class="btn btn-teal btn-block" style="margin-bottom:10px" onclick="obConfirmName(true)">是，就用這個名字</button>' +
+      '<button class="btn btn-ghost btn-block" onclick="obConfirmName(false)">否，我想改名</button>' +
+      '<div id="ob-nickname-wrap" style="display:none; margin-top:14px">' +
+        '<div class="ob-text">請問您想以何種面目示人？</div>' +
+        '<input class="ob-input" id="ob-nickname" maxlength="20" placeholder="輸入暱稱">' +
+        '<button class="btn btn-coral btn-block" onclick="obSubmitNickname()">送出</button>' +
+      '</div>';
+    app.innerHTML = '';
+    app.appendChild(wrap);
+    return;
+  }
 
-  // Group alt sets, preserve insertion order
-  const altBuckets = {};
-  items.forEach(it => {
-    const id = it['Alt Group ID'];
-    if (id) (altBuckets[id] = altBuckets[id] || []).push(it);
+  if (ob.stage === 4) {
+    const checkedCount = ob.clauses.filter(c => c.checked).length;
+    wrap.innerHTML =
+      '<div class="ob-title">' + esc(ob.trip) + ' 旅行公約</div>' +
+      '<div class="ob-text">請勾選所有您可以一同遵守的條文</div>' +
+      ob.clauses.map((c, i) =>
+        '<label class="agreement-item">' +
+          '<input type="checkbox" ' + (c.checked ? 'checked' : '') + ' onchange="obToggleClause(' + i + ')">' +
+          '<span>' + esc(c.text) + '</span>' +
+        '</label>'
+      ).join('') +
+      '<button class="btn btn-coral btn-block" style="margin-top:16px" onclick="obSignAgreement()">簽署旅行公約</button>' +
+      (ob.error ? '<div class="ob-nudge">請提高配合度，一同創造快樂的旅程！</div>' : '');
+    app.innerHTML = '';
+    app.appendChild(wrap);
+    return;
+  }
+}
+
+async function obSubmitPasscode() {
+  const input = document.getElementById('ob-passcode');
+  const trip = input.value.trim();
+  if (!trip) return;
+  ob.tripInput = trip;
+
+  const result = await apiPost('joinTrip', { trip });
+  if (result.error === 'notFound') { ob.error = true; renderOnboarding(); return; }
+  if (result.error) { alert('錯誤: ' + result.error); return; }
+
+  ob.trip = trip;
+  ob.error = '';
+
+  if (result.alreadyJoined && result.agreementSignedAt) {
+    await refreshMyTrips();
+    navigateTo('home');
+    return;
+  }
+  if (result.alreadyJoined && !result.agreementSignedAt) {
+    await obLoadAgreement();
+    return;
+  }
+  ob.stage = 3;
+  renderOnboarding();
+}
+
+function obConfirmName(useLineName) {
+  if (useLineName) { obLoadAgreement(); return; }
+  document.getElementById('ob-nickname-wrap').style.display = 'block';
+}
+
+async function obSubmitNickname() {
+  const nickname = document.getElementById('ob-nickname').value.trim();
+  if (!nickname) return;
+  const result = await apiPost('updateNickname', { nickname });
+  if (result.error) { alert('錯誤: ' + result.error); return; }
+  currentUser.displayName = nickname;
+  document.getElementById('drawer-name').textContent = nickname;
+  obLoadAgreement();
+}
+
+async function obLoadAgreement() {
+  const res = await apiGet('getTripAgreement', { trip: ob.trip });
+  if (res.error) { alert('找不到這個行程的旅行公約設定'); return; }
+  ob.clauses = (res.clauses || []).map(text => ({ text, checked: false }));
+  ob.stage = 4;
+  ob.error = '';
+  renderOnboarding();
+}
+
+function obToggleClause(i) {
+  ob.clauses[i].checked = !ob.clauses[i].checked;
+}
+
+async function obSignAgreement() {
+  const total = ob.clauses.length;
+  const checked = ob.clauses.filter(c => c.checked).length;
+  const result = await apiPost('signAgreement', { trip: ob.trip, checkedCount: checked, totalCount: total });
+  if (result.error === 'notEnoughChecked') { ob.error = true; renderOnboarding(); return; }
+  if (result.error) { alert('錯誤: ' + result.error); return; }
+
+  await refreshMyTrips();
+  navigateTo('home');
+}
+
+// ── Home ────────────────────────────────────────────────────────────────────────
+
+let homeSelectedTrip = null;
+
+async function renderHome() {
+  const app = document.getElementById('app');
+  if (!myTrips.length) { app.innerHTML = '<div class="no-items">尚未加入任何行程</div>'; return; }
+
+  if (!homeSelectedTrip || !myTrips.some(t => t['Trip'] === homeSelectedTrip)) {
+    const withDates = myTrips.filter(t => t['Start Date']).sort((a, b) => String(a['Start Date']).localeCompare(String(b['Start Date'])));
+    homeSelectedTrip = (withDates[0] || myTrips[0])['Trip'];
+  }
+  const trip = myTrips.find(t => t['Trip'] === homeSelectedTrip);
+  const items = await ensureTripItems(homeSelectedTrip);
+  const roster = await ensureRoster();
+
+  const countdown = daysUntil(trip['Start Date']);
+  const upcoming = items
+    .filter(it => it['Start Time'] && it['Start Time'] >= _nowLocalStr())
+    .sort((a, b) => a['Start Time'].localeCompare(b['Start Time']))
+    .slice(0, 3);
+  const members = roster.filter(r => r.trips && r.trips.indexOf(homeSelectedTrip) >= 0);
+
+  const app2 = document.createElement('div');
+  app2.innerHTML =
+    '<select id="home-trip-select" onchange="homeSelectedTrip=this.value; render()">' +
+      myTrips.map(t => '<option value="' + esc(t['Trip']) + '"' + (t['Trip'] === homeSelectedTrip ? ' selected' : '') + '>' + esc(t['Location'] || t['Trip']) + '</option>').join('') +
+    '</select>' +
+    '<div class="hero-card">' +
+      '<div class="hero-trip-name">' + esc(trip['Location'] || trip['Trip']) + '</div>' +
+      '<div class="hero-meta">' + esc(trip['Start Date'] || '') + (trip['End Date'] ? ' → ' + esc(trip['End Date']) : '') + '</div>' +
+      (countdown != null ? '<div class="countdown-badge">' + (countdown > 0 ? '倒數 ' + countdown + ' 天' : (countdown === 0 ? '就是今天！' : '進行中')) + '</div>' : '') +
+    '</div>' +
+    '<div class="section-title">✨ 精選行程</div>' +
+    '<div id="home-highlights"></div>' +
+    '<div class="section-title">🎒 打包清單</div>' +
+    '<div class="stub-card">這趟行程尚未開放打包清單</div>' +
+    '<div class="section-title">👥 成員</div>' +
+    '<div id="home-members"></div>';
+  app.innerHTML = '';
+  app.appendChild(app2);
+
+  renderItemList(document.getElementById('home-highlights'), upcoming, '目前沒有即將到來的行程');
+  const membersEl = document.getElementById('home-members');
+  if (!members.length) { membersEl.innerHTML = '<div class="no-items" style="padding:20px">尚無成員</div>'; }
+  else members.forEach(m => {
+    const row = document.createElement('div');
+    row.className = 'member-row';
+    row.innerHTML = (m.pictureUrl ? '<img class="avatar" src="' + esc(m.pictureUrl) + '">' : '<div class="avatar"></div>') + esc(m.displayName);
+    membersEl.appendChild(row);
   });
+}
 
+// ── Trips overview + Trip (Individual) ───────────────────────────────────────────
+
+let tripsFilter = 'all';
+
+function renderTrips() {
+  const app = document.getElementById('app');
+  const today = _todayStr();
+  const withStatus = myTrips.map(t => {
+    let status = 'planning';
+    if (t['Start Date'] && t['End Date']) {
+      if (t['End Date'] < today) status = 'completed';
+      else if (t['Start Date'] > today) status = 'upcoming';
+      else status = 'ongoing';
+    }
+    return Object.assign({}, t, { _status: status });
+  });
+  const filtered = tripsFilter === 'all' ? withStatus : withStatus.filter(t => t._status === tripsFilter);
+
+  const wrap = document.createElement('div');
+  wrap.innerHTML =
+    '<div class="chips">' +
+      [['all','全部'], ['upcoming','即將'], ['ongoing','進行中'], ['completed','已完成'], ['planning','規劃中']].map(([k, label]) =>
+        '<div class="chip' + (tripsFilter === k ? ' active' : '') + '" onclick="tripsFilter=\'' + k + '\'; render()">' + label + '</div>'
+      ).join('') +
+    '</div>' +
+    '<button class="btn btn-teal btn-block" style="margin-bottom:14px" onclick="startOnboarding()">+ 加入新行程 New Trip</button>' +
+    '<div id="trip-cards"></div>';
+  app.innerHTML = '';
+  app.appendChild(wrap);
+
+  const cardsEl = document.getElementById('trip-cards');
+  if (!filtered.length) { cardsEl.innerHTML = '<div class="no-items">沒有符合條件的行程</div>'; return; }
+  filtered.forEach(t => {
+    const card = document.createElement('div');
+    card.className = 'trip-card';
+    card.onclick = () => navigateTo('tripDetail', { trip: t['Trip'] });
+    const coverStyle = t['Cover'] ? 'background-image:url(\'' + esc(t['Cover']) + '\')' : 'background:' + DEFAULT_TRIP_COVER;
+    card.innerHTML =
+      '<div class="trip-card-cover" style="' + coverStyle + '"></div>' +
+      '<div class="trip-card-body">' +
+        '<div class="trip-card-name">' + esc(t['Location'] || t['Trip']) + '</div>' +
+        '<div class="trip-card-meta">' + esc(t['Start Date'] || '') + (t['End Date'] ? ' → ' + esc(t['End Date']) : '') + '</div>' +
+      '</div>';
+    cardsEl.appendChild(card);
+  });
+}
+
+async function renderTripDetail() {
+  const app = document.getElementById('app');
+  const trip = myTrips.find(t => t['Trip'] === currentTrip);
+  if (!trip) { app.innerHTML = '<div class="no-items">找不到這個行程</div>'; return; }
+
+  const wrap = document.createElement('div');
+  wrap.innerHTML =
+    '<div class="pill-tabs">' +
+      TRIP_TABS.map(([k, label]) => '<div class="pill-tab' + (currentTripTab === k ? ' active' : '') + '" onclick="navigateTo(\'tripDetail\',{trip:\'' + esc(currentTrip) + '\',tab:\'' + k + '\'})">' + label + '</div>').join('') +
+    '</div>' +
+    '<div id="trip-tab-content"></div>';
+  app.innerHTML = '';
+  app.appendChild(wrap);
+
+  const contentEl = document.getElementById('trip-tab-content');
+  const items = await ensureTripItems(currentTrip);
+  const today = _todayStr();
+
+  if (currentTripTab === 'overview') {
+    const roster = await ensureRoster();
+    const members = roster.filter(r => r.trips && r.trips.indexOf(currentTrip) >= 0);
+    const todayItems = items.filter(it => (it['Start Time'] || '').slice(0, 10) === today);
+    contentEl.innerHTML =
+      '<div class="section-title">簡介</div>' +
+      '<div class="card"><div class="card-body">' + esc(trip['Announcement'] || '歡迎來到 ' + (trip['Location'] || trip['Trip']) + '！') + '</div></div>' +
+      '<div class="section-title">今日行程</div>' +
+      '<div id="overview-today"></div>' +
+      '<div class="section-title">成員</div>' +
+      '<div id="overview-members"></div>';
+    renderItemList(document.getElementById('overview-today'), todayItems, '今天沒有安排行程');
+    const membersEl = document.getElementById('overview-members');
+    if (!members.length) membersEl.innerHTML = '<div class="no-items" style="padding:16px">尚無成員</div>';
+    else members.forEach(m => {
+      const row = document.createElement('div'); row.className = 'member-row';
+      row.innerHTML = (m.pictureUrl ? '<img class="avatar" src="' + esc(m.pictureUrl) + '">' : '<div class="avatar"></div>') + esc(m.displayName);
+      membersEl.appendChild(row);
+    });
+
+  } else if (currentTripTab === 'itinerary') {
+    contentEl.innerHTML = '';
+    const groups = groupByDay(items);
+    if (!groups.length) { contentEl.innerHTML = '<div class="no-items">尚無行程資料</div>'; return; }
+    groups.forEach((g, i) => {
+      const dayWrap = document.createElement('div');
+      dayWrap.innerHTML =
+        '<div class="day-header" onclick="this.nextElementSibling.classList.toggle(\'collapsed\')">' +
+          '<div class="day-circle">' + (i + 1) + '</div>' +
+          '<div class="day-label">' + esc(g.day) + '</div>' +
+          '<div class="day-toggle">▾</div>' +
+        '</div>' +
+        '<div class="day-items"></div>';
+      contentEl.appendChild(dayWrap);
+      renderItemList(dayWrap.querySelector('.day-items'), g.items, '');
+    });
+
+  } else if (currentTripTab === 'locations') {
+    const locItems = items.filter(it => ['Attraction', 'Restaurant', 'Shopping'].indexOf(it['Category']) >= 0);
+    contentEl.innerHTML = '';
+    renderItemList(contentEl, locItems, '這趟行程還沒有景點／餐廳／購物地點');
+
+  } else if (currentTripTab === 'mission') {
+    renderTripMissionTab(contentEl, items, today);
+
+  } else if (currentTripTab === 'packing') {
+    contentEl.innerHTML = '<div class="stub-card">這趟行程尚未開放打包清單，可先參考「打包清單」總覽的通用清單。</div>';
+
+  } else if (currentTripTab === 'expense') {
+    contentEl.innerHTML = '<div class="stub-card">花費追蹤功能尚未開放。</div>';
+  }
+}
+
+let tripMissionFilter = 'all';
+
+function renderTripMissionTab(contentEl, items, today) {
+  const missions = items.filter(it => it['Is Mission']).map(it => Object.assign({}, it, { _status: clientMissionStatus(it, today) }));
+  const filtered = tripMissionFilter === 'all' ? missions : missions.filter(m => m._status === tripMissionFilter);
+
+  const chips = document.createElement('div');
+  chips.className = 'chips';
+  chips.innerHTML = [['all','全部'], ['new','新任務'], ['inProgress','進行中'], ['completed','已完成'], ['expired','已過期']].map(([k, label]) =>
+    '<div class="chip' + (tripMissionFilter === k ? ' active' : '') + '" onclick="tripMissionFilter=\'' + k + '\'; render()">' + label + '</div>'
+  ).join('');
+  contentEl.innerHTML = '';
+  contentEl.appendChild(chips);
+
+  const listEl = document.createElement('div');
+  contentEl.appendChild(listEl);
+  if (!filtered.length) { listEl.innerHTML = '<div class="no-items">沒有符合條件的任務</div>'; return; }
+  filtered.forEach(it => listEl.appendChild(buildCard(it, false)));
+}
+
+// ── Roster ────────────────────────────────────────────────────────────────────
+
+async function renderRoster() {
+  const app = document.getElementById('app');
+  const roster = await ensureRoster(true);
+  app.innerHTML = '';
+  if (!roster.length) { app.innerHTML = '<div class="no-items">尚無成員資料</div>'; return; }
+  roster.forEach(m => {
+    const card = document.createElement('div');
+    card.className = 'roster-card';
+    card.innerHTML =
+      (m.pictureUrl ? '<img class="roster-avatar" src="' + esc(m.pictureUrl) + '">' : '<div class="roster-avatar"></div>') +
+      '<div>' +
+        '<div class="roster-name">' + esc(m.displayName) + (m.isMe ? ' (你)' : '') + '</div>' +
+        '<div class="tag-row">' + (m.trips.length ? m.trips.map(t => '<span class="tag">' + esc(t) + '</span>').join('') : '<span class="tag">尚無共同行程</span>') + '</div>' +
+      '</div>';
+    app.appendChild(card);
+  });
+}
+
+// ── Missions (global) ─────────────────────────────────────────────────────────
+
+let missionsFilter = 'all';
+
+async function renderMissions() {
+  const app = document.getElementById('app');
+  const missions = await ensureMissions();
+
+  const chips = document.createElement('div');
+  chips.className = 'chips';
+  chips.innerHTML = [['all','全部'], ['new','新任務'], ['inProgress','進行中'], ['completed','已完成'], ['expired','已過期']].map(([k, label]) =>
+    '<div class="chip' + (missionsFilter === k ? ' active' : '') + '" onclick="missionsFilter=\'' + k + '\'; render()">' + label + '</div>'
+  ).join('');
+  app.innerHTML = '';
+  app.appendChild(chips);
+
+  const filtered = missionsFilter === 'all' ? missions : missions.filter(m => m['_status'] === missionsFilter);
+  const listEl = document.createElement('div');
+  app.appendChild(listEl);
+  if (!filtered.length) { listEl.innerHTML = '<div class="no-items">沒有符合條件的任務</div>'; return; }
+  filtered.forEach(it => listEl.appendChild(buildCard(it, false, true)));
+}
+
+// ── Achievements ──────────────────────────────────────────────────────────────
+
+function renderAchievements() {
+  const app = document.getElementById('app');
+  app.innerHTML = '<div class="achv-card">🏅<div style="margin-top:8px;font-weight:700">成就系統開發中</div><div style="margin-top:4px;font-size:12px">目前尚未有任何成就發放</div></div>';
+}
+
+// ── Packing list (global) ────────────────────────────────────────────────────
+
+function renderPackingGlobal() {
+  const app = document.getElementById('app');
+  app.innerHTML = '<div class="pack-note">📌 這是通用打包清單參考，目前尚無法儲存勾選狀態。</div>';
+  PACKING_MASTER.forEach(group => {
+    const cat = document.createElement('div');
+    cat.className = 'pack-category';
+    cat.innerHTML = '<div class="pack-category-title">' + esc(group.cat) + '</div>' +
+      group.items.map(item => '<label class="pack-item"><input type="checkbox" disabled>' + esc(item) + '</label>').join('');
+    app.appendChild(cat);
+  });
+}
+
+// ── Profile ───────────────────────────────────────────────────────────────────
+
+async function renderProfile() {
+  const app = document.getElementById('app');
+  const roster = await ensureRoster();
+  const me = roster.find(r => r.isMe) || { displayName: currentUser.displayName, pictureUrl: '' };
+
+  app.innerHTML =
+    '<div class="profile-header">' +
+      (me.pictureUrl ? '<img class="profile-avatar" src="' + esc(me.pictureUrl) + '">' : '<div class="profile-avatar"></div>') +
+      '<div class="profile-name">' + esc(me.displayName) + '</div>' +
+    '</div>' +
+    '<button class="btn btn-ghost btn-block" onclick="profileChangeNickname()">變更暱稱</button>' +
+    '<div id="profile-nickname-wrap" style="display:none; margin-top:14px">' +
+      '<div class="ob-text">請問您想以何種面目示人？</div>' +
+      '<input class="ob-input" id="profile-nickname" maxlength="20" placeholder="輸入暱稱">' +
+      '<button class="btn btn-coral btn-block" onclick="profileSubmitNickname()">送出</button>' +
+    '</div>';
+}
+
+function profileChangeNickname() {
+  document.getElementById('profile-nickname-wrap').style.display = 'block';
+}
+
+async function profileSubmitNickname() {
+  const nickname = document.getElementById('profile-nickname').value.trim();
+  if (!nickname) return;
+  const result = await apiPost('updateNickname', { nickname });
+  if (result.error) { alert('錯誤: ' + result.error); return; }
+  currentUser.displayName = nickname;
+  document.getElementById('drawer-name').textContent = nickname;
+  rosterCache = null;
+  render();
+}
+
+// ── Shared card / item-list builders ─────────────────────────────────────────────
+
+function renderItemList(container, items, emptyMessage) {
+  container.innerHTML = '';
+  if (!items.length) {
+    if (emptyMessage) container.innerHTML = '<div class="no-items" style="padding:16px">' + esc(emptyMessage) + '</div>';
+    return;
+  }
+  const altBuckets = {};
+  items.forEach(it => { const id = it['Alt Group ID']; if (id) (altBuckets[id] = altBuckets[id] || []).push(it); });
   const seenAlt = new Set();
   items.forEach(it => {
     const id = it['Alt Group ID'];
     if (id) {
       if (seenAlt.has(id)) return;
       seenAlt.add(id);
-      el.appendChild(buildAltGroup(altBuckets[id]));
+      container.appendChild(buildAltGroup(altBuckets[id]));
     } else {
-      el.appendChild(buildCard(it, false));
+      container.appendChild(buildCard(it, false));
     }
   });
 }
 
-// ── Card builders ─────────────────────────────────────────────────────────────
-
-function buildCard(item, inAltGroup) {
+function buildCard(item, inAltGroup, showTripTag) {
   const isMission = !!item['Is Mission'];
   const isDone    = !!item['Completed At'];
   const isChosen  = item['Is Chosen'] === true || item['Is Chosen'] === 'true';
@@ -386,13 +927,11 @@ function buildCard(item, inAltGroup) {
 
   const statusPill = isDone
     ? '<span class="pill pill-done">✓ 完成</span>'
-    : (isMission && item['Triggered At'] ? '<span class="pill pill-active">進行中</span>' : '');
+    : (isMission && item['Triggered At'] ? '<span class="pill pill-active">進行中</span>' : (isMission ? '<span class="pill pill-muted">未觸發</span>' : ''));
+  const tripTag = showTripTag && item['Trip'] ? '<span class="pill trip-tag" style="background:' + tripColor(item['Trip']) + '">' + esc(item['Trip']) + '</span>' : '';
 
   const card = document.createElement('div');
-  card.className = 'card' +
-    (isMission                   ? ' mission'  : '') +
-    (isChosen                    ? ' chosen'   : '') +
-    (inAltGroup && !isMission    ? ' alt-item' : '');
+  card.className = 'card' + (isMission ? ' mission' : '') + (isChosen ? ' chosen' : '') + (inAltGroup && !isMission ? ' alt-item' : '');
   if (rowIndex) card.dataset.rowIndex = rowIndex;
 
   card.innerHTML =
@@ -401,7 +940,7 @@ function buildCard(item, inAltGroup) {
       '<div class="card-top">' +
         '<div class="cat-icon">' + emoji + '</div>' +
         '<div class="card-info">' +
-          '<div class="card-title">' + esc(item['Item'] || '') + statusPill + '</div>' +
+          '<div class="card-title">' + esc(item['Item'] || '') + statusPill + tripTag + '</div>' +
           (timeStr ? '<div class="card-time">🕐 ' + timeStr + '</div>' : '') +
           (note    ? '<div class="card-note">'   + esc(note)   + '</div>' : '') +
           (reward  ? '<div class="card-reward">🎁 ' + esc(reward) + '</div>' : '') +
@@ -409,7 +948,6 @@ function buildCard(item, inAltGroup) {
       '</div>' +
     '</div>';
 
-  // Action buttons
   if (isMission && !isDone && item['Triggered At']) {
     const actions = document.createElement('div');
     actions.className = 'card-actions';
@@ -419,49 +957,37 @@ function buildCard(item, inAltGroup) {
   if (inAltGroup && !isChosen && !isDone) {
     const actions = document.createElement('div');
     actions.className = 'card-actions';
-    actions.innerHTML =
-      '<button class="btn btn-teal" onclick="chooseRestaurant(' + rowIndex + ', \'' + esc(item['Alt Group ID']) + '\', this)">選這家</button>';
+    actions.innerHTML = '<button class="btn btn-teal" onclick="chooseRestaurant(' + rowIndex + ', \'' + esc(item['Alt Group ID']) + '\', this)">選這家</button>';
     card.appendChild(actions);
   }
-
   return card;
 }
 
 function buildAltGroup(members) {
   const wrap = document.createElement('div');
   const time = fmtTime(members[0]['Start Time'], members[0]['End Time']);
-
   const hdr = document.createElement('div');
   hdr.className = 'alt-header';
   hdr.textContent = '🍽️ 餐廳選擇' + (time ? '  ·  ' + time : '');
   wrap.appendChild(hdr);
-
   members.forEach((m, i) => {
-    if (i > 0) {
-      const hr = document.createElement('hr');
-      hr.className = 'alt-divider';
-      wrap.appendChild(hr);
-    }
+    if (i > 0) { const hr = document.createElement('hr'); hr.className = 'alt-divider'; wrap.appendChild(hr); }
     wrap.appendChild(buildCard(m, true));
   });
-
   return wrap;
 }
 
-// ── Actions ───────────────────────────────────────────────────────────────────
+// ── Actions (mutating) ────────────────────────────────────────────────────────
 
 async function completeMission(rowIndex, btn) {
-  if (!currentUser) return;
   btn.disabled = true;
   btn.textContent = '送出中…';
   try {
-    const result = await callPost({ action: 'completeMission', rowIndex, userId: currentUser.userId });
+    const result = await apiPost('completeMission', { rowIndex });
     if (result.ok) {
-      const card = btn.closest('.card'); // capture before innerHTML detaches btn from the DOM
-      const actionsEl = btn.closest('.card-actions');
-      actionsEl.innerHTML = '<span class="inline-success">✓ 任務完成！</span>';
-      const activePill = card.querySelector('.pill-active');
-      if (activePill) activePill.outerHTML = '<span class="pill pill-done">✓ 完成</span>';
+      missionsCache = null;
+      if (currentTrip) tripItemsCache[currentTrip] = null;
+      render();
     } else {
       btn.disabled = false; btn.textContent = '完成任務';
       alert('錯誤: ' + (result.error || '請稍後再試'));
@@ -476,9 +1002,11 @@ async function chooseRestaurant(rowIndex, altGroupId, btn) {
   btn.disabled = true;
   btn.textContent = '選擇中…';
   try {
-    const result = await callPost({ action: 'chooseRestaurant', rowIndex, altGroupId });
+    const result = await apiPost('chooseRestaurant', { rowIndex, altGroupId });
     if (result.ok) {
-      window.location.reload();
+      if (currentTrip) tripItemsCache[currentTrip] = null;
+      Object.keys(tripItemsCache).forEach(t => tripItemsCache[t] = null);
+      render();
     } else {
       btn.disabled = false; btn.textContent = '選這家';
       alert('錯誤: ' + (result.error || '請稍後再試'));
@@ -491,11 +1019,44 @@ async function chooseRestaurant(rowIndex, altGroupId, btn) {
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
-function todayStr() {
+function groupByDay(items) {
+  const groups = {}, order = [];
+  items.forEach(it => {
+    const day = (it['Start Time'] || '').slice(0, 10) || '未定日期';
+    if (!groups[day]) { groups[day] = []; order.push(day); }
+    groups[day].push(it);
+  });
+  return order.map(day => ({ day, items: groups[day] }));
+}
+
+function clientMissionStatus(it, today) {
+  if (it['Completed At']) return 'completed';
+  if (it['Triggered At']) return 'inProgress';
+  const start = (it['Start Time'] || '').replace(/-/g, '/');
+  if (!it['Is Multi-day'] && start && start.slice(0, 10) < today) return 'expired';
+  return 'new';
+}
+
+function tripColor(trip) {
+  let hash = 0;
+  for (let i = 0; i < trip.length; i++) hash = (hash * 31 + trip.charCodeAt(i)) >>> 0;
+  return TRIP_COLOR_PALETTE[hash % TRIP_COLOR_PALETTE.length];
+}
+
+function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const target = new Date(String(dateStr).slice(0, 10).replace(/\//g, '-'));
+  const today = new Date(_todayStr().replace(/\//g, '-'));
+  return Math.round((target - today) / 86400000);
+}
+
+function _todayStr() {
   const d = new Date();
-  return d.getFullYear() + '/' +
-    String(d.getMonth() + 1).padStart(2, '0') + '/' +
-    String(d.getDate()).padStart(2, '0');
+  return d.getFullYear() + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0');
+}
+function _nowLocalStr() {
+  const d = new Date();
+  return _todayStr() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
 }
 
 function fmtTime(start, end) {
@@ -509,13 +1070,6 @@ function esc(str) {
   return String(str || '')
     .replace(/&/g,'&amp;').replace(/</g,'&lt;')
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function showError(msg) {
-  document.getElementById('loading').style.display = 'none';
-  const el = document.getElementById('error-msg');
-  el.textContent = msg;
-  el.style.display = 'block';
 }
 
 function scrollToMission(rowIndex) {
