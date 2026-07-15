@@ -307,7 +307,9 @@ async function loadOrganizerView(trip) {
 async function callPost(body) {
   const res = await fetch(CONFIG.gasUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    // text/plain avoids a CORS preflight (OPTIONS), which Apps Script Web Apps
+    // don't implement — doPost still JSON.parses the raw body regardless of header.
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({ ...body, userId: currentUser ? currentUser.userId : '' })
   });
   return res.json();
