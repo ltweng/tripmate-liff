@@ -267,7 +267,7 @@
 <script>
 // ── CONFIG — only non-secret values live here ────────────────────────────────
 const CONFIG = {
-  liffId: '2010468064-uKRXbFfR', // participant LIFF app's own ID
+  liffId: '2010468064-4RvCpshe', // participant LIFF app's own ID
   gasUrl: 'https://script.google.com/macros/s/AKfycbx4yqj479yhsIAOUBkIWFKNvlKFnTCVZQ18uyiaxXtoGXJURpZ0bw26zgBsiqYu2rjQ/exec'
   // No secret here — GAS validates your LINE userId instead (set by liff.getProfile)
 };
@@ -397,7 +397,9 @@ async function apiGet(action, params) {
 async function apiPost(action, body) {
   const res = await fetch(CONFIG.gasUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    // text/plain avoids a CORS preflight (OPTIONS), which Apps Script Web Apps
+    // don't implement — doPost still JSON.parses the raw body regardless of header.
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify(Object.assign({ action, userId: currentUser ? currentUser.userId : '' }, body || {}))
   });
   return res.json();
@@ -493,7 +495,7 @@ function renderOnboarding() {
     wrap.innerHTML =
       '<div class="ob-title">加入行程 🌊</div>' +
       '<div class="ob-text">請輸入行程通關密語（由主辦人提供）</div>' +
-      '<input class="ob-input" id="ob-passcode" placeholder="例如 Summer26" value="' + esc(ob.tripInput) + '">' +
+      '<input class="ob-input" id="ob-passcode" placeholder="例如 Trip2026" value="' + esc(ob.tripInput) + '">' +
       (ob.error ? '<div class="ob-nudge">這個行程尚不存在，請聯絡活動主持人預約行程！</div>' : '') +
       '<button class="btn btn-coral btn-block" onclick="obSubmitPasscode()">加入</button>';
     app.innerHTML = '';
