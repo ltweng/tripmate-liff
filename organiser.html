@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TripMate — Organiser</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -44,110 +44,107 @@
     #header {
       position: sticky; top: 0; z-index: 20;
       background: var(--deep);
-      padding: 14px 16px 0;
+      padding: 14px 16px;
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
     }
-    #brand { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-    #brand h1 { font-size: 19px; font-weight: 700; color: #FFFFFF; letter-spacing: -0.2px; }
-    #brand .wave { font-size: 20px; }
+    #brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    #brand h1 { font-size: 17px; font-weight: 700; color: #FFFFFF; letter-spacing: -0.2px; white-space: nowrap; }
+    #brand .wave { font-size: 20px; flex-shrink: 0; }
+    #view-title { font-size: 12px; color: rgba(255,255,255,0.65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .badge {
-      font-size: 10px; font-weight: 800; letter-spacing: 0.5px;
+      font-size: 9px; font-weight: 800; letter-spacing: 0.5px;
       background: var(--coral); color: #fff;
-      padding: 2px 9px; border-radius: 20px;
+      padding: 2px 8px; border-radius: 20px; vertical-align: middle; margin-left: 6px;
     }
+    #hamburger {
+      flex-shrink: 0; width: 36px; height: 36px; border-radius: 10px;
+      background: rgba(255,255,255,0.1); border: none; color: #fff; font-size: 18px; cursor: pointer;
+    }
+    #back-btn { flex-shrink: 0; background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; padding: 0 4px; }
 
-    #trip-select-wrap { margin-bottom: 10px; }
-    #trip-select {
-      width: 100%; appearance: none;
-      background: rgba(255,255,255,0.1); color: #fff;
-      border: 1px solid rgba(255,255,255,0.25);
-      border-radius: var(--radius-sm);
-      padding: 8px 12px; font-size: 13px; font-weight: 700;
-      font-family: inherit;
+    /* ── Drawer ───────────────────────────────────────── */
+    #drawer-backdrop {
+      position: fixed; inset: 0; background: rgba(11,35,66,0.4);
+      opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 29;
     }
-    #trip-select option { color: #000; }
+    #drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+    #drawer {
+      position: fixed; top: 0; right: 0; bottom: 0; width: 78%; max-width: 300px;
+      background: var(--deep); z-index: 30; padding: 20px 0;
+      transform: translateX(100%); transition: transform 0.22s ease-out;
+      overflow-y: auto;
+    }
+    #drawer.open { transform: translateX(0); }
+    .drawer-header { padding: 0 20px 16px; color: #fff; }
+    .drawer-header .name { font-weight: 700; font-size: 15px; }
+    .drawer-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 13px 20px; color: rgba(255,255,255,0.85); font-weight: 700; font-size: 14px;
+      cursor: pointer; user-select: none;
+    }
+    .drawer-item:active { background: rgba(255,255,255,0.08); }
+    .drawer-item .emoji { font-size: 18px; width: 22px; text-align: center; }
+    .drawer-item.active { background: rgba(255,255,255,0.1); color: #fff; }
 
-    /* ── Nav pills ────────────────────────────────────── */
-    #nav {
-      display: flex; gap: 4px;
-      background: rgba(255,255,255,0.08);
-      border-radius: 999px; padding: 4px;
-      margin-bottom: 12px;
-    }
-    .nav-tab {
-      flex: 1; padding: 8px 0; font-size: 12.5px; font-weight: 700;
-      text-align: center; cursor: pointer;
-      color: rgba(255,255,255,0.55);
-      border-radius: 999px;
-      transition: all 0.15s;
-      user-select: none;
-    }
-    .nav-tab.active { color: var(--deep); background: #FFFFFF; }
-
-    /* ── States ───────────────────────────────────────── */
-    #loading, #error-msg {
-      text-align: center; padding: 64px 24px; font-size: 14px; color: var(--muted);
-    }
-    #error-msg { color: var(--coral); }
+    /* ── Shared states ────────────────────────────────── */
+    #loading, .no-items { text-align: center; padding: 64px 24px; font-size: 14px; color: var(--muted); }
+    .no-items p { margin-top: 6px; font-size: 12px; }
+    .view-loading { text-align: center; padding: 48px 0; }
     .spinner {
       width: 32px; height: 32px; margin: 0 auto 14px;
-      border: 3px solid var(--divider);
-      border-top-color: var(--teal);
-      border-radius: 50%;
+      border: 3px solid var(--divider); border-top-color: var(--teal); border-radius: 50%;
       animation: spin 0.75s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+    #app { padding: 14px 14px 40px; }
 
-    #content { padding: 12px 12px 40px; }
-
-    /* ── Filter chips ─────────────────────────────────── */
-    #filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+    /* ── Pill tabs / filter chips ─────────────────────── */
+    .pill-tabs {
+      display: flex; gap: 4px; background: var(--card); border: 1px solid var(--border);
+      border-radius: 999px; padding: 4px; margin-bottom: 12px; overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .pill-tabs::-webkit-scrollbar { display: none; }
+    .pill-tab {
+      flex: 1; min-width: 64px; padding: 8px 6px; font-size: 12.5px; font-weight: 700;
+      text-align: center; border-radius: 999px; color: var(--muted); cursor: pointer; white-space: nowrap;
+    }
+    .pill-tab.active { background: var(--deep); color: #fff; }
+    .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
     .chip {
-      font-size: 12px; font-weight: 700; padding: 6px 13px;
-      border-radius: 999px; background: var(--card); border: 1px solid var(--border);
-      color: var(--muted); cursor: pointer; user-select: none;
+      font-size: 12px; font-weight: 700; padding: 6px 13px; border-radius: 999px;
+      background: var(--card); border: 1px solid var(--border); color: var(--muted); cursor: pointer;
     }
     .chip.active { background: var(--deep); color: #fff; border-color: var(--deep); }
 
-    .no-items { text-align: center; padding: 48px 16px; color: var(--muted); font-size: 14px; }
-
-    /* ── Card ─────────────────────────────────────────── */
-    .card {
-      background: var(--card);
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      margin-bottom: 10px;
-      overflow: hidden;
-    }
-    .card.mission { border-left: 4px solid var(--coral); }
-    .card.chosen  { background: var(--chosen-bg); border-color: var(--teal); }
-
-    .card-body { padding: 13px 15px; }
+    /* ── Card (item / mission / achievement) ─────────── */
+    .card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 10px; overflow: hidden; }
+    .card.mission  { border-left: 4px solid var(--coral); }
+    .card.chosen   { background: var(--chosen-bg); border-color: var(--teal); }
+    .card-body { padding: 13px 14px; }
     .card-top  { display: flex; align-items: flex-start; gap: 10px; }
     .cat-icon {
-      flex-shrink: 0; width: 36px; height: 36px; border-radius: var(--radius-sm);
-      background: var(--coral-light);
+      flex-shrink: 0; width: 36px; height: 36px; border-radius: var(--radius-sm); background: var(--bg);
       display: flex; align-items: center; justify-content: center; font-size: 17px;
     }
+    .card.mission .cat-icon { background: var(--coral-light); }
+    .card.chosen  .cat-icon { background: rgba(27,175,191,0.12); }
     .card-info { flex: 1; min-width: 0; }
     .card-title { font-size: 14.5px; font-weight: 700; margin-bottom: 2px; word-break: break-word; }
     .card-time  { font-size: 11px; color: var(--muted); margin-bottom: 1px; }
     .card-note  { font-size: 12px; color: #4A6680; margin-top: 5px; white-space: pre-wrap; word-break: break-word; }
-
-    .pill {
-      display: inline-block; font-size: 10px; font-weight: 800;
-      padding: 2px 8px; border-radius: 20px; margin-left: 5px; vertical-align: middle;
-    }
+    .pill { display: inline-block; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 20px; margin-left: 5px; vertical-align: middle; }
+    .pill-done   { background: var(--teal-light); color: #0A7A8A; }
     .pill-untriggered { background: var(--border); color: var(--muted); }
     .pill-triggered   { background: var(--coral-light); color: #B04530; }
-    .pill-done        { background: var(--teal-light); color: #0A7A8A; }
-
-    .card-actions { padding: 0 15px 13px; display: flex; gap: 8px; flex-wrap: wrap; }
+    .pill-muted  { background: var(--border); color: var(--muted); }
+    .pill-status { background: var(--deep); color: #fff; }
+    .trip-tag { color: #fff; }
+    .card-actions { padding: 0 14px 13px; display: flex; gap: 8px; flex-wrap: wrap; }
     .btn {
-      flex: 1; min-width: 110px; padding: 10px 12px;
-      border: none; border-radius: var(--radius-sm);
-      font-size: 13px; font-weight: 700; cursor: pointer;
+      flex: 1; min-width: 110px; padding: 10px 12px; border: none; border-radius: var(--radius-sm);
+      font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
       transition: opacity 0.12s, transform 0.1s;
-      font-family: inherit;
     }
     .btn:active:not(:disabled) { opacity: 0.75; transform: scale(0.98); }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -156,31 +153,95 @@
     .btn-teal   { background: var(--teal);  color: #fff; }
     .btn-ghost  { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
     .btn-copy   { background: var(--deep-mid); color: #fff; flex: 0 0 auto; min-width: 72px; }
-
-    .alt-header {
-      display: flex; align-items: center; gap: 6px;
-      padding: 6px 4px 3px; font-size: 11px; font-weight: 800; color: var(--teal);
-      text-transform: uppercase; letter-spacing: 0.5px;
-    }
+    .btn-block  { width: 100%; }
+    .btn-sm     { flex: 0 0 auto; min-width: 0; padding: 7px 12px; font-size: 12px; }
+    .alt-header { display: flex; align-items: center; gap: 6px; padding: 6px 4px 3px; font-size: 11px; font-weight: 800; color: var(--teal); text-transform: uppercase; letter-spacing: 0.5px; }
     .alt-divider { border: none; border-top: 1px solid var(--divider); margin: 4px 0; }
+    .inline-success { font-size: 13px; font-weight: 700; color: var(--teal); }
 
     /* ── NFC list ─────────────────────────────────────── */
-    .nfc-row {
-      display: flex; align-items: center; gap: 10px;
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px;
-    }
+    .nfc-row { display: flex; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px; }
     .nfc-info { flex: 1; min-width: 0; }
     .nfc-title { font-size: 13.5px; font-weight: 700; }
     .nfc-url { font-size: 11px; color: var(--muted); word-break: break-all; margin-top: 2px; }
     .nfc-missing { font-size: 11px; color: var(--coral); margin-top: 2px; }
 
-    .inline-success { font-size: 13px; font-weight: 700; color: var(--teal); }
+    /* ── Section / day headers ────────────────────────── */
+    .section-title { font-size: 15px; font-weight: 700; margin: 4px 0 10px; font-family: 'Fraunces', serif; }
+    .day-header { display: flex; align-items: center; gap: 8px; margin: 14px 0 8px; cursor: pointer; user-select: none; }
+    .day-circle { width: 26px; height: 26px; border-radius: 50%; background: var(--deep); color: #fff; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .day-label { font-size: 13px; font-weight: 700; color: var(--text); flex: 1; }
+    .day-toggle { font-size: 11px; color: var(--muted); }
+    .day-items.collapsed { display: none; }
+
+    /* ── Home dashboard ───────────────────────────────── */
+    .hero-card { background: linear-gradient(135deg, var(--deep), var(--ocean)); border-radius: var(--radius); padding: 20px; color: #fff; margin-bottom: 14px; }
+    .hero-trip-name { font-size: 20px; font-weight: 700; font-family: 'Fraunces', serif; }
+    .hero-meta { font-size: 12px; color: rgba(255,255,255,0.75); margin-top: 4px; }
+    .countdown-badge { display: inline-block; margin-top: 10px; background: rgba(255,255,255,0.15); padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 700; }
+    .stat-row { display: flex; gap: 10px; margin-bottom: 14px; }
+    .stat-card { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; text-align: center; }
+    .stat-num { font-size: 22px; font-weight: 800; color: var(--deep); font-family: 'Fraunces', serif; }
+    .stat-label { font-size: 11px; color: var(--muted); font-weight: 700; margin-top: 2px; }
+
+    /* ── Trip cards ────────────────────────────────────── */
+    .trip-card { border-radius: var(--radius); overflow: hidden; margin-bottom: 12px; border: 1px solid var(--border); background: var(--card); cursor: pointer; }
+    .trip-card-cover { height: 80px; background: #B4CDE6; background-size: cover; background-position: center; }
+    .trip-card-body { padding: 12px 14px; }
+    .trip-card-name { font-weight: 700; font-size: 15px; }
+    .trip-card-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    /* ── Roster ────────────────────────────────────────── */
+    .roster-card { display: flex; align-items: center; gap: 12px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px; cursor: pointer; }
+    .roster-avatar, .avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--border); object-fit: cover; flex-shrink: 0; }
+    .roster-name { font-weight: 700; font-size: 14px; }
+    .tag-row { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; }
+    .tag { font-size: 10px; font-weight: 700; background: var(--bg); color: var(--muted); padding: 2px 8px; border-radius: 999px; }
+    .tag.achv-tag { background: var(--coral-light); color: #B04530; }
+
+    /* ── Achievements ──────────────────────────────────── */
+    .achv-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 10px; }
+    .achv-top { display: flex; align-items: center; gap: 10px; }
+    .achv-emoji { font-size: 24px; flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%; background: var(--bg); display: flex; align-items: center; justify-content: center; }
+    .achv-card.unpublished .achv-emoji { filter: grayscale(1); opacity: 0.6; }
+    .achv-title { font-weight: 700; font-size: 14.5px; }
+    .achv-desc { font-size: 12px; color: var(--muted); margin-top: 3px; }
+    mark { background: #FFE9A8; color: inherit; border-radius: 3px; padding: 0 1px; }
+
+    /* ── Packing list ──────────────────────────────────── */
+    .pack-category { margin-bottom: 16px; }
+    .pack-category-title { font-weight: 700; font-size: 13px; margin-bottom: 6px; color: var(--deep-mid); display: flex; align-items: center; justify-content: space-between; }
+    .pack-item { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 13px; color: var(--text); }
+    .pack-item.untagged { color: var(--muted); }
+    .pack-item input { width: 16px; height: 16px; flex-shrink: 0; }
+    .pack-note { font-size: 11px; color: var(--muted); margin: -4px 0 10px; }
+    .add-item-row { display: flex; gap: 6px; margin-top: 6px; }
+    .add-item-row input { flex: 1; min-width: 0; }
+
+    /* ── Tasks ─────────────────────────────────────────── */
+    .task-row { display: flex; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 11px 13px; margin-bottom: 7px; }
+    .task-row input { width: 18px; height: 18px; flex-shrink: 0; }
+    .task-text { flex: 1; font-size: 13.5px; }
+    .task-row.done .task-text { text-decoration: line-through; color: var(--muted); }
+    .task-trip-tag { font-size: 10px; color: var(--muted); }
+
+    /* ── Forms ─────────────────────────────────────────── */
+    .form-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 14px; }
+    .form-label { font-size: 12px; font-weight: 700; color: var(--muted); margin: 10px 0 4px; }
+    .form-label:first-child { margin-top: 0; }
+    .form-input, .form-select, textarea.form-input {
+      width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+      font-size: 14px; font-family: inherit; background: #fff;
+    }
+    textarea.form-input { resize: vertical; min-height: 60px; }
+    .search-input { width: 100%; margin-bottom: 12px; padding: 10px 14px; border-radius: 999px; border: 1px solid var(--border); font-size: 13px; font-family: inherit; }
+    .member-select { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+
     .toast {
       position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
       background: var(--deep); color: #fff; font-size: 13px; font-weight: 700;
       padding: 10px 18px; border-radius: 999px; opacity: 0; pointer-events: none;
-      transition: opacity 0.2s; z-index: 50;
+      transition: opacity 0.2s; z-index: 50; white-space: nowrap;
     }
     .toast.show { opacity: 1; }
   </style>
@@ -189,31 +250,39 @@
 
 <div id="header">
   <div id="brand">
+    <button id="back-btn" style="display:none" onclick="handleBack()">←</button>
     <span class="wave">🌊</span>
-    <h1>TripMate</h1>
-    <span class="badge">ORGANISER</span>
+    <div>
+      <h1>TripMate<span class="badge">ORGANISER</span></h1>
+      <div id="view-title"></div>
+    </div>
   </div>
-  <div id="trip-select-wrap">
-    <select id="trip-select" onchange="onTripChange(this.value)"><option>載入行程中…</option></select>
-  </div>
-  <div id="nav">
-    <div class="nav-tab active" data-tab="missions" onclick="switchTab('missions')">任務</div>
-    <div class="nav-tab"        data-tab="restaurants" onclick="switchTab('restaurants')">餐廳</div>
-    <div class="nav-tab"        data-tab="nfc" onclick="switchTab('nfc')">NFC 連結</div>
-  </div>
+  <button id="hamburger" onclick="toggleDrawer()" style="display:none">☰</button>
+</div>
+
+<div id="drawer-backdrop" onclick="closeDrawer()"></div>
+<div id="drawer">
+  <div class="drawer-header"><div class="name" id="drawer-name"></div></div>
+  <div class="drawer-item" data-view="home"         onclick="navigateTo('home')"><span class="emoji">🏠</span>首頁 Homepage</div>
+  <div class="drawer-item" data-view="trips"        onclick="navigateTo('trips')"><span class="emoji">🧳</span>行程 Trips</div>
+  <div class="drawer-item" data-view="itineraries"  onclick="navigateTo('itineraries')"><span class="emoji">🗓️</span>行程總覽 Itineraries</div>
+  <div class="drawer-item" data-view="roster"       onclick="navigateTo('roster')"><span class="emoji">👥</span>成員 Rosters</div>
+  <div class="drawer-item" data-view="missions"     onclick="navigateTo('missions')"><span class="emoji">🎯</span>任務 Missions</div>
+  <div class="drawer-item" data-view="achievements" onclick="navigateTo('achievements')"><span class="emoji">🏅</span>成就 Achievements</div>
+  <div class="drawer-item" data-view="packing"      onclick="navigateTo('packing')"><span class="emoji">🎒</span>打包清單 Packing List</div>
+  <div class="drawer-item" data-view="tasks"        onclick="navigateTo('tasks')"><span class="emoji">✅</span>待辦 Tasks</div>
 </div>
 
 <div id="loading"><div class="spinner"></div>載入中…</div>
-<div id="error-msg" style="display:none"></div>
-<div id="content" style="display:none"></div>
+<div id="app" style="display:none"></div>
 <div id="toast" class="toast"></div>
 
 <script>
 // ── CONFIG — only non-secret values live here ────────────────────────────────
 const CONFIG = {
-  liffId: '2010468064-4RvCpshe',
+  liffId: '2010468064-4RvCpshe', // organiser LIFF app's own ID (per "LIFF ID.md"; uKRXbFfR is the PARTICIPANT app)
   gasUrl: 'https://script.google.com/macros/s/AKfycbx4yqj479yhsIAOUBkIWFKNvlKFnTCVZQ18uyiaxXtoGXJURpZ0bw26zgBsiqYu2rjQ/exec'
-  // No secret here — GAS validates your LINE userId instead (set by liff.getProfile)
+  // No secret here — GAS validates your LINE userId (+ ORGANISER_IDS membership) instead.
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -222,18 +291,46 @@ const EMOJI = {
   'Accommodation':'🏨','Note':'📝','Task':'📋','Mission':'🎯'
 };
 
-let currentUser   = null;
-let currentTab    = 'missions';
-let missionFilter = 'all'; // all | today | pending | done
-let currentTrip   = null;
-let viewData      = { missions: [], altGroups: [], today: '' };
-let pendingSend   = null; // rowIndex awaiting second confirm tap
+const TRIP_TABS = [['itinerary','行程'], ['missions','任務'], ['roster','成員'], ['packing','打包']];
+const TRIP_COLOR_PALETTE = ['#1BAFBF', '#D95F42', '#5B8DBF', '#7A6FD9', '#3FAE7A', '#C9A227'];
+const DEFAULT_TRIP_COVER = '#B4CDE6';
 
-// ── Init ─────────────────────────────────────────────────────────────────────
+// ── Global state ──────────────────────────────────────────────────────────────
+let currentUser    = null;
+let currentView    = 'home';
+let currentTrip    = null;   // Trip code, when currentView === 'tripDetail'
+let currentTripTab = 'itinerary';
 
-// Wraps a promise with a deadline so a hung liff.init()/fetch() surfaces a
-// visible error instead of leaving the page stuck on the static "載入中…"
-// forever with no signal of what actually failed.
+let tripsCache      = null;  // getTrips (all trips, unscoped — organiser-only)
+let rosterCache      = null;
+let tripItemsCache   = {};   // trip -> items (getTimeline scope=all)
+let orgMissionsCache = null; // getOrganizerMissions (cross-trip)
+let achievementsCache = null;
+let packingCache      = null;
+let tasksCache        = null;
+let homeCache         = null;
+
+let pendingSend = null; // rowIndex awaiting second confirm tap (mission Send Now)
+
+// Filter/UI state per view
+let tripsFilter          = 'all';
+let missionsTripFilter   = [];      // selected trip codes, [] = all
+let rosterTripFilter     = [];
+let selectedMember       = null;    // userId shown in roster member-detail
+let achievementsTripFilter = [];
+let achievementsSearch     = '';
+let achievementFormOpen    = false;
+let awardingAchievementId  = null;  // achievement ID currently showing the member picker
+let packingSelectedTrip    = null;
+let packingSearch          = '';
+let packingChecked         = null;  // Set of item IDs currently tagged for packingSelectedTrip (client-side, dirty until "Update")
+let tasksTripFilter        = 'all'; // 'all' | '' (general only) | a trip code
+let tasksStatusFilter      = 'open';
+let itinerariesSelectedTrip = null;
+let tripMissionFilter       = 'all'; // 未觸發/已推送/已完成 filter inside Trip > Missions tab
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
 function withTimeout(promise, ms, label) {
   return Promise.race([
     promise,
@@ -247,205 +344,400 @@ async function init() {
     if (!liff.isLoggedIn()) { liff.login(); return; }
 
     const profile = await withTimeout(liff.getProfile(), 10000, 'liff.getProfile()');
-    currentUser   = { userId: profile.userId, displayName: profile.displayName };
+    currentUser = { userId: profile.userId, displayName: profile.displayName };
+    document.getElementById('drawer-name').textContent = profile.displayName;
 
-    await withTimeout(loadTrips(), 10000, 'getTrips API');
+    navigateTo('home');
   } catch (err) {
-    showError('初始化失敗: ' + err.message);
+    document.getElementById('loading').innerHTML = '<div class="no-items">初始化失敗: ' + esc(err.message) + '</div>';
   }
 }
 
-async function loadTrips() {
-  const userId = currentUser.userId;
-  const url = CONFIG.gasUrl + '?action=getTrips&userId=' + encodeURIComponent(userId);
-  const data = await fetch(url).then(r => r.json());
-  if (data.error) throw new Error(data.error);
+// ── API helpers ───────────────────────────────────────────────────────────────
 
-  const sel = document.getElementById('trip-select');
-  const trips = data.trips || [];
-  if (!trips.length) {
-    sel.innerHTML = '<option value="">尚無行程</option>';
-  } else {
-    sel.innerHTML = trips.map(t =>
-      '<option value="' + esc(t['Trip']) + '">' + esc(t['Trip']) +
-      (t['Trip'] === data.activeTrip ? '　★' : '') + '</option>'
-    ).join('');
-  }
-  currentTrip = (data.activeTrip && trips.some(t => t['Trip'] === data.activeTrip))
-    ? data.activeTrip
-    : (trips[0] ? trips[0]['Trip'] : null);
-  sel.value = currentTrip || '';
-
-  if (currentTrip) await loadOrganizerView(currentTrip);
-  else showError('尚未設定任何行程，請先匯入行程資料。');
+async function apiGet(action, params) {
+  const qs = new URLSearchParams(Object.assign({ action, userId: currentUser ? currentUser.userId : '' }, params || {}));
+  const res = await fetch(CONFIG.gasUrl + '?' + qs.toString());
+  if (!res.ok) throw new Error('伺服器錯誤 (' + res.status + ')');
+  return res.json();
 }
 
-async function onTripChange(trip) {
-  currentTrip = trip;
-  document.getElementById('loading').style.display = 'block';
-  document.getElementById('content').style.display = 'none';
-  await loadOrganizerView(trip);
-}
-
-async function loadOrganizerView(trip) {
-  try {
-    const userId = currentUser.userId;
-    const url = CONFIG.gasUrl + '?action=getOrganizerView&trip=' + encodeURIComponent(trip) +
-                '&userId=' + encodeURIComponent(userId);
-    const data = await fetch(url).then(r => r.json());
-    if (data.error) throw new Error(data.error);
-
-    viewData = data;
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('content').style.display = 'block';
-    render();
-  } catch (err) {
-    showError('無法載入資料: ' + err.message);
-  }
-}
-
-async function callPost(body) {
+async function apiPost(action, body) {
   const res = await fetch(CONFIG.gasUrl, {
     method: 'POST',
     // text/plain avoids a CORS preflight (OPTIONS), which Apps Script Web Apps
     // don't implement — doPost still JSON.parses the raw body regardless of header.
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ ...body, userId: currentUser ? currentUser.userId : '' })
+    body: JSON.stringify(Object.assign({ action, userId: currentUser ? currentUser.userId : '' }, body || {}))
   });
+  if (!res.ok) throw new Error('伺服器錯誤 (' + res.status + ')');
   return res.json();
 }
 
-// ── Tabs ──────────────────────────────────────────────────────────────────────
+// ── Navigation / router ────────────────────────────────────────────────────────
 
-function switchTab(tab) {
-  currentTab = tab;
-  document.querySelectorAll('.nav-tab').forEach(el => {
-    el.classList.toggle('active', el.dataset.tab === tab);
-  });
+function navigateTo(view, opts) {
+  opts = opts || {};
+  currentView = view;
+  if (view === 'tripDetail') {
+    if (opts.trip) currentTrip = opts.trip;
+    currentTripTab = opts.tab || 'itinerary';
+  }
+  selectedMember = null;
+  closeDrawer();
   render();
 }
 
-function setMissionFilter(f) {
-  missionFilter = f;
-  render();
+function handleBack() { navigateTo('trips'); }
+
+function toggleDrawer() {
+  document.getElementById('drawer').classList.toggle('open');
+  document.getElementById('drawer-backdrop').classList.toggle('open');
+}
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawer-backdrop').classList.remove('open');
 }
 
-// ── Render ────────────────────────────────────────────────────────────────────
+const VIEW_TITLES = {
+  home: '首頁', trips: '行程', tripDetail: '', itineraries: '行程總覽', roster: '成員',
+  missions: '任務', achievements: '成就', packing: '打包清單', tasks: '待辦'
+};
 
-function render() {
-  const el = document.getElementById('content');
-  el.innerHTML = '';
-
-  if (currentTab === 'missions') el.appendChild(renderMissions());
-  else if (currentTab === 'restaurants') el.appendChild(renderRestaurants());
-  else el.appendChild(renderNfc());
+function updateHeader() {
+  document.getElementById('hamburger').style.display = 'block';
+  document.getElementById('back-btn').style.display = currentView === 'tripDetail' ? 'block' : 'none';
+  document.getElementById('view-title').textContent = currentView === 'tripDetail' ? (currentTrip || '') : (VIEW_TITLES[currentView] || '');
+  document.querySelectorAll('.drawer-item').forEach(el => el.classList.toggle('active', el.dataset.view === currentView));
 }
 
-function renderMissions() {
+// ── Render dispatcher ───────────────────────────────────────────────────────────
+
+async function render() {
+  document.getElementById('loading').style.display = 'none';
+  const app = document.getElementById('app');
+  app.style.display = 'block';
+  updateHeader();
+  app.innerHTML = '<div class="view-loading"><div class="spinner"></div></div>';
+  try {
+    if (currentView === 'home')         return await renderHome();
+    if (currentView === 'trips')        return await renderTrips();
+    if (currentView === 'tripDetail')   return await renderTripDetail();
+    if (currentView === 'itineraries')  return await renderItineraries();
+    if (currentView === 'roster')       return await renderRoster();
+    if (currentView === 'missions')     return await renderMissions();
+    if (currentView === 'achievements') return await renderAchievements();
+    if (currentView === 'packing')      return await renderPacking();
+    if (currentView === 'tasks')        return await renderTasks();
+  } catch (err) {
+    app.innerHTML = '<div class="no-items">載入失敗<p>' + esc(err.message) + '</p></div>';
+  }
+}
+
+// ── Data fetchers (cached) ───────────────────────────────────────────────────
+
+async function ensureTrips(force) {
+  if (tripsCache && !force) return tripsCache;
+  const res = await apiGet('getTrips');
+  tripsCache = res.trips || [];
+  return tripsCache;
+}
+async function ensureRoster(force) {
+  if (rosterCache && !force) return rosterCache;
+  const res = await apiGet('getRoster');
+  rosterCache = res.roster || [];
+  return rosterCache;
+}
+async function ensureTripItems(trip, force) {
+  if (tripItemsCache[trip] && !force) return tripItemsCache[trip];
+  const res = await apiGet('getTimeline', { trip, scope: 'all' });
+  tripItemsCache[trip] = res.items || [];
+  return tripItemsCache[trip];
+}
+async function ensureAchievements(force) {
+  if (achievementsCache && !force) return achievementsCache;
+  const res = await apiGet('getAchievementsAdmin');
+  achievementsCache = res.achievements || [];
+  return achievementsCache;
+}
+async function ensurePacking(force) {
+  if (packingCache && !force) return packingCache;
+  const res = await apiGet('getPackingAdmin');
+  packingCache = res.items || [];
+  return packingCache;
+}
+async function ensureHome(force) {
+  if (homeCache && !force) return homeCache;
+  homeCache = await apiGet('getOrganizerHome');
+  return homeCache;
+}
+
+// ── Home ──────────────────────────────────────────────────────────────────────
+
+let homeTab = 'trips';
+
+async function renderHome() {
+  const app = document.getElementById('app');
+  const home = await ensureHome();
+  const trips = await ensureTrips();
+
+  const nextTrip = trips.find(t => t['Trip'] === home.nextTrip);
   const wrap = document.createElement('div');
+  wrap.innerHTML =
+    (nextTrip ? (
+      '<div class="hero-card">' +
+        '<div class="hero-trip-name">' + esc(nextTrip['Location'] || nextTrip['Trip']) + '</div>' +
+        '<div class="hero-meta">' + esc(nextTrip['Start Date'] || '') + (nextTrip['End Date'] ? ' → ' + esc(nextTrip['End Date']) : '') + '</div>' +
+        (home.countdown != null ? '<div class="countdown-badge">' + (home.countdown > 0 ? '倒數 ' + home.countdown + ' 天' : (home.countdown === 0 ? '就是今天！' : '進行中')) + '</div>' : '') +
+      '</div>'
+    ) : '<div class="no-items" style="padding:20px 0">尚無即將到來的行程</div>') +
+    '<div class="stat-row">' +
+      '<div class="stat-card"><div class="stat-num">' + trips.length + '</div><div class="stat-label">總行程數</div></div>' +
+      '<div class="stat-card"><div class="stat-num">' + home.openTaskCount + '</div><div class="stat-label">未完成待辦</div></div>' +
+    '</div>' +
+    '<div class="pill-tabs">' +
+      [['trips','行程'], ['roster','成員'], ['achievements','成就']].map(([k,label]) =>
+        '<div class="pill-tab' + (homeTab === k ? ' active' : '') + '" onclick="homeTab=\'' + k + '\'; render()">' + label + '</div>'
+      ).join('') +
+    '</div>' +
+    '<div id="home-tab-content"></div>';
+  app.innerHTML = '';
+  app.appendChild(wrap);
 
-  const filters = document.createElement('div');
-  filters.id = 'filters';
-  const filterDefs = [['all','全部'], ['today','今天'], ['pending','待推送'], ['done','已完成']];
-  filters.innerHTML = filterDefs.map(([key, label]) =>
-    '<div class="chip' + (missionFilter === key ? ' active' : '') + '" onclick="setMissionFilter(\'' + key + '\')">' + label + '</div>'
-  ).join('');
-  wrap.appendChild(filters);
+  const el = document.getElementById('home-tab-content');
+  if (homeTab === 'trips') { el.appendChild(await buildTripCards(trips.slice(0, 6))); }
+  else if (homeTab === 'roster') { el.appendChild(await buildRosterList((await ensureRoster()).slice(0, 6))); }
+  else { el.appendChild(await buildAchievementCards((await ensureAchievements()).slice(0, 6))); }
+}
 
-  let missions = viewData.missions || [];
-  const today = viewData.today || '';
-  if (missionFilter === 'today') {
-    missions = missions.filter(m => String(m['Start Time'] || '').replace(/-/g,'/').slice(0,10) === today
-      || String(m['Mission Start Time'] || '').replace(/-/g,'/').slice(0,10) === today);
-  } else if (missionFilter === 'pending') {
-    missions = missions.filter(m => !m['Triggered At'] && !m['Completed At']);
-  } else if (missionFilter === 'done') {
-    missions = missions.filter(m => !!m['Completed At']);
-  }
+// ── Trips overview + Trip Individual ───────────────────────────────────────────
 
-  if (!missions.length) {
-    const empty = document.createElement('div');
-    empty.className = 'no-items';
-    empty.textContent = '🎯 沒有符合條件的任務';
-    wrap.appendChild(empty);
-    return wrap;
-  }
+function tripStatus(t, today) {
+  if (!t['Start Date'] || !t['End Date']) return 'planning';
+  if (t['End Date'] < today) return 'completed';
+  if (t['Start Date'] > today) return 'upcoming';
+  return 'ongoing';
+}
 
-  missions.forEach(m => wrap.appendChild(buildMissionCard(m)));
+async function buildTripCards(trips) {
+  const wrap = document.createElement('div');
+  if (!trips.length) { wrap.innerHTML = '<div class="no-items">沒有符合條件的行程</div>'; return wrap; }
+  trips.forEach(t => {
+    const card = document.createElement('div');
+    card.className = 'trip-card';
+    card.onclick = () => navigateTo('tripDetail', { trip: t['Trip'] });
+    const coverStyle = t['Cover'] ? 'background-image:url(\'' + esc(t['Cover']) + '\')' : 'background:' + DEFAULT_TRIP_COVER;
+    card.innerHTML =
+      '<div class="trip-card-cover" style="' + coverStyle + '"></div>' +
+      '<div class="trip-card-body">' +
+        '<div class="trip-card-name">' + esc(t['Location'] || t['Trip']) + '</div>' +
+        '<div class="trip-card-meta">' + esc(t['Start Date'] || '') + (t['End Date'] ? ' → ' + esc(t['End Date']) : '') + '</div>' +
+      '</div>';
+    wrap.appendChild(card);
+  });
   return wrap;
 }
 
-function buildMissionCard(item) {
+async function renderTrips() {
+  const app = document.getElementById('app');
+  const today = todayStr();
+  const trips = (await ensureTrips()).map(t => Object.assign({}, t, { _status: tripStatus(t, today) }));
+  const filtered = tripsFilter === 'all' ? trips : trips.filter(t => t._status === tripsFilter);
+
+  const wrap = document.createElement('div');
+  wrap.innerHTML =
+    '<div class="chips">' +
+      [['all','全部'], ['ongoing','進行中'], ['upcoming','即將'], ['completed','已完成'], ['planning','規劃中']].map(([k,label]) =>
+        '<div class="chip' + (tripsFilter === k ? ' active' : '') + '" onclick="tripsFilter=\'' + k + '\'; render()">' + label + '</div>'
+      ).join('') +
+    '</div>' +
+    '<button class="btn btn-teal btn-block" style="margin-bottom:14px" onclick="tripFormOpen=!tripFormOpen; render()">' + (tripFormOpen ? '取消' : '+ 新增行程') + '</button>' +
+    '<div id="trip-form-slot"></div>' +
+    '<div id="trip-cards"></div>';
+  app.innerHTML = '';
+  app.appendChild(wrap);
+
+  if (tripFormOpen) document.getElementById('trip-form-slot').appendChild(buildTripForm());
+  document.getElementById('trip-cards').appendChild(await buildTripCards(filtered));
+}
+
+let tripFormOpen = false;
+
+function buildTripForm() {
+  const card = document.createElement('div');
+  card.className = 'form-card';
+  card.innerHTML =
+    '<div class="form-label">行程代號（同時作為加入通關密語）</div><input class="form-input" id="tf-trip" placeholder="例如 Winter2027">' +
+    '<div class="form-label">地點</div><input class="form-input" id="tf-location" placeholder="例如 北海道">' +
+    '<div class="form-label">開始日期</div><input class="form-input" id="tf-start" type="date">' +
+    '<div class="form-label">結束日期</div><input class="form-input" id="tf-end" type="date">' +
+    '<div class="form-label">公告 / 簡介</div><textarea class="form-input" id="tf-announcement" placeholder="給參加者看的歡迎訊息"></textarea>' +
+    '<button class="btn btn-coral btn-block" style="margin-top:12px" onclick="submitCreateTrip(this)">建立行程</button>';
+  return card;
+}
+
+async function submitCreateTrip(btn) {
+  const trip = document.getElementById('tf-trip').value.trim();
+  if (!trip) return;
+  btn.disabled = true; btn.textContent = '建立中…';
+  try {
+    const result = await apiPost('createTrip', {
+      trip,
+      location: document.getElementById('tf-location').value.trim(),
+      startDate: (document.getElementById('tf-start').value || '').replace(/-/g, '/'),
+      endDate: (document.getElementById('tf-end').value || '').replace(/-/g, '/'),
+      announcement: document.getElementById('tf-announcement').value.trim()
+    });
+    if (result.ok) {
+      tripFormOpen = false;
+      showToast('✓ 已建立行程「' + trip + '」');
+      await ensureTrips(true);
+      render();
+    } else {
+      showToast('錯誤: ' + (result.error || '請稍後再試'));
+      btn.disabled = false; btn.textContent = '建立行程';
+    }
+  } catch (err) {
+    showToast('網路錯誤: ' + err.message);
+    btn.disabled = false; btn.textContent = '建立行程';
+  }
+}
+
+async function renderTripDetail() {
+  const app = document.getElementById('app');
+  const trips = await ensureTrips();
+  const trip = trips.find(t => t['Trip'] === currentTrip);
+  if (!trip) { app.innerHTML = '<div class="no-items">找不到這個行程</div>'; return; }
+
+  const wrap = document.createElement('div');
+  wrap.innerHTML =
+    '<div class="section-title">' + esc(trip['Location'] || trip['Trip']) + '</div>' +
+    '<div class="hero-meta" style="color:var(--muted);margin:-6px 0 12px">' + esc(trip['Start Date'] || '') + (trip['End Date'] ? ' → ' + esc(trip['End Date']) : '') + '</div>' +
+    '<div class="pill-tabs">' +
+      TRIP_TABS.map(([k, label]) => '<div class="pill-tab' + (currentTripTab === k ? ' active' : '') + '" onclick="navigateTo(\'tripDetail\',{trip:\'' + esc(currentTrip) + '\',tab:\'' + k + '\'})">' + label + '</div>').join('') +
+    '</div>' +
+    '<div id="trip-tab-content"></div>';
+  app.innerHTML = '';
+  app.appendChild(wrap);
+
+  const contentEl = document.getElementById('trip-tab-content');
+  if (currentTripTab === 'itinerary') {
+    const items = await ensureTripItems(currentTrip);
+    renderDayGroupedItems(contentEl, items);
+  } else if (currentTripTab === 'missions') {
+    await renderTripMissionsTab(contentEl, currentTrip);
+  } else if (currentTripTab === 'roster') {
+    const roster = (await ensureRoster()).filter(m => m.trips && m.trips.indexOf(currentTrip) >= 0);
+    contentEl.appendChild(await buildRosterList(roster));
+  } else if (currentTripTab === 'packing') {
+    const items = (await ensurePacking()).filter(it => String(it['Trip Tags'] || '').split(',').map(s=>s.trim()).indexOf(currentTrip) >= 0);
+    contentEl.innerHTML = items.length ? '' : '<div class="no-items">這趟行程尚未標記任何打包清單項目</div>';
+    if (items.length) renderPackingCategoryList(contentEl, items, null, false);
+  }
+}
+
+// ── Trip > Missions tab (the trip-day control panel: Send Now / 選這家 / NFC) ──
+
+async function fetchOrganizerView(trip, force) {
+  return apiGet('getOrganizerView', { trip });
+}
+
+let orgViewCache = {}; // trip -> {missions, altGroups, today}
+
+async function renderTripMissionsTab(contentEl, trip) {
+  if (!orgViewCache[trip]) orgViewCache[trip] = await fetchOrganizerView(trip);
+  const data = orgViewCache[trip];
+
+  contentEl.innerHTML =
+    '<div class="pill-tabs">' +
+      [['send','推送控制'], ['nfc','NFC 連結']].map(([k,label]) =>
+        '<div class="pill-tab' + (tripMissionSubTab === k ? ' active' : '') + '" onclick="tripMissionSubTab=\'' + k + '\'; render()">' + label + '</div>'
+      ).join('') +
+    '</div><div id="tm-sub"></div>';
+  const sub = document.getElementById('tm-sub');
+
+  if (tripMissionSubTab === 'nfc') {
+    sub.appendChild(buildNfcList(data.missions || []));
+    return;
+  }
+
+  const filters = document.createElement('div');
+  filters.className = 'chips';
+  filters.innerHTML = [['all','全部'], ['today','今天'], ['pending','待推送'], ['done','已完成']].map(([k,label]) =>
+    '<div class="chip' + (tripMissionFilter === k ? ' active' : '') + '" onclick="tripMissionFilter=\'' + k + '\'; render()">' + label + '</div>'
+  ).join('');
+  sub.appendChild(filters);
+
+  let missions = data.missions || [];
+  if (tripMissionFilter === 'today') {
+    missions = missions.filter(m => String(m['Start Time'] || '').replace(/-/g,'/').slice(0,10) === data.today
+      || String(m['Mission Start Time'] || '').replace(/-/g,'/').slice(0,10) === data.today);
+  } else if (tripMissionFilter === 'pending') {
+    missions = missions.filter(m => !m['Triggered At'] && !m['Completed At']);
+  } else if (tripMissionFilter === 'done') {
+    missions = missions.filter(m => !!m['Completed At']);
+  }
+
+  if (!missions.length) { sub.appendChild(elNoItems('🎯 沒有符合條件的任務')); }
+  else missions.forEach(m => sub.appendChild(buildMissionCard(m, false)));
+
+  const altGroups = data.altGroups || [];
+  if (altGroups.length) {
+    const hdr = document.createElement('div');
+    hdr.className = 'section-title';
+    hdr.style.marginTop = '16px';
+    hdr.textContent = '🍽️ 餐廳選擇（今明兩天）';
+    sub.appendChild(hdr);
+    altGroups.forEach(g => {
+      g.members.forEach((m, i) => {
+        if (i > 0) { const hr = document.createElement('hr'); hr.className = 'alt-divider'; sub.appendChild(hr); }
+        sub.appendChild(buildRestaurantCard(m, g.id, trip));
+      });
+    });
+  }
+}
+
+let tripMissionSubTab = 'send';
+
+function buildMissionCard(item, showTripTag) {
   const rowIndex = item['_rowIndex'] || 0;
   const isDone = !!item['Completed At'];
   const isSent = !!item['Triggered At'];
   const note   = (item['Note'] || '').trim();
+  const reward = (item['Reward'] || '').trim();
   const timeStr = fmtTime(item['Mission Start Time'] || item['Start Time'], item['End Time']);
 
   const statusPill = isDone
     ? '<span class="pill pill-done">✓ 已完成</span>'
-    : isSent
-      ? '<span class="pill pill-triggered">已推送</span>'
-      : '<span class="pill pill-untriggered">未觸發</span>';
+    : isSent ? '<span class="pill pill-triggered">已推送</span>' : '<span class="pill pill-untriggered">未觸發</span>';
+  const tripTag = showTripTag && item['Trip'] ? '<span class="pill trip-tag" style="background:' + tripColor(item['Trip']) + '">' + esc(item['Trip']) + '</span>' : '';
 
   const card = document.createElement('div');
   card.className = 'card mission';
-
   card.innerHTML =
-    '<div class="card-body">' +
-      '<div class="card-top">' +
-        '<div class="cat-icon">🎯</div>' +
-        '<div class="card-info">' +
-          '<div class="card-title">' + esc(item['Item'] || '') + statusPill + '</div>' +
-          (timeStr ? '<div class="card-time">🕐 ' + timeStr + '</div>' : '') +
-          (note ? '<div class="card-note">' + esc(note) + '</div>' : '') +
-        '</div>' +
+    '<div class="card-body"><div class="card-top">' +
+      '<div class="cat-icon">🎯</div>' +
+      '<div class="card-info">' +
+        '<div class="card-title">' + esc(item['Item'] || '') + statusPill + tripTag + '</div>' +
+        (timeStr ? '<div class="card-time">🕐 ' + timeStr + '</div>' : '') +
+        (note ? '<div class="card-note">' + esc(note) + '</div>' : '') +
+        (reward ? '<div class="card-note" style="color:var(--coral)">🎁 ' + esc(reward) + '</div>' : '') +
       '</div>' +
-    '</div>';
+    '</div></div>';
 
   if (!isDone) {
     const actions = document.createElement('div');
     actions.className = 'card-actions';
     const isPendingConfirm = pendingSend === rowIndex;
     actions.innerHTML =
-      '<button class="btn ' + (isPendingConfirm ? 'btn-coral-confirm' : 'btn-coral') + '" ' +
-      'onclick="onSendNowClick(' + rowIndex + ', this)">' +
-      (isPendingConfirm ? '再按一次確認送出' : (isSent ? '重新推送' : '立即推送')) +
-      '</button>';
+      '<button class="btn ' + (isPendingConfirm ? 'btn-coral-confirm' : 'btn-coral') + '" onclick="onSendNowClick(' + rowIndex + ', this)">' +
+      (isPendingConfirm ? '再按一次確認送出' : (isSent ? '重新推送' : '立即推送')) + '</button>';
     card.appendChild(actions);
   }
-
   return card;
 }
 
-function renderRestaurants() {
-  const wrap = document.createElement('div');
-  const groups = viewData.altGroups || [];
-
-  if (!groups.length) {
-    const empty = document.createElement('div');
-    empty.className = 'no-items';
-    empty.textContent = '🍽️ 今天沒有需要選擇的餐廳';
-    return (wrap.appendChild(empty), wrap);
-  }
-
-  groups.forEach(g => {
-    const time = fmtTime(g.members[0]['Start Time'], g.members[0]['End Time']);
-    const hdr = document.createElement('div');
-    hdr.className = 'alt-header';
-    hdr.textContent = '🍽️ 餐廳選擇' + (time ? '  ·  ' + time : '');
-    wrap.appendChild(hdr);
-
-    g.members.forEach((m, i) => {
-      if (i > 0) { const hr = document.createElement('hr'); hr.className = 'alt-divider'; wrap.appendChild(hr); }
-      wrap.appendChild(buildRestaurantCard(m, g.id));
-    });
-  });
-
-  return wrap;
-}
-
-function buildRestaurantCard(item, altGroupId) {
+function buildRestaurantCard(item, altGroupId, trip) {
   const rowIndex = item['_rowIndex'] || 0;
   const isChosen = item['Is Chosen'] === true || item['Is Chosen'] === 'true';
   const note = (item['Note'] || '').trim();
@@ -454,38 +746,27 @@ function buildRestaurantCard(item, altGroupId) {
   const card = document.createElement('div');
   card.className = 'card' + (isChosen ? ' chosen' : '');
   card.innerHTML =
-    '<div class="card-body">' +
-      '<div class="card-top">' +
-        '<div class="cat-icon">🍽️</div>' +
-        '<div class="card-info">' +
-          '<div class="card-title">' + esc(item['Item'] || '') + (isChosen ? '<span class="pill pill-done">✓ 已選</span>' : '') + '</div>' +
-          (timeStr ? '<div class="card-time">🕐 ' + timeStr + '</div>' : '') +
-          (note ? '<div class="card-note">' + esc(note) + '</div>' : '') +
-        '</div>' +
+    '<div class="card-body"><div class="card-top">' +
+      '<div class="cat-icon">🍽️</div>' +
+      '<div class="card-info">' +
+        '<div class="card-title">' + esc(item['Item'] || '') + (isChosen ? '<span class="pill pill-done">✓ 已選</span>' : '') + '</div>' +
+        (timeStr ? '<div class="card-time">🕐 ' + timeStr + '</div>' : '') +
+        (note ? '<div class="card-note">' + esc(note) + '</div>' : '') +
       '</div>' +
-    '</div>';
+    '</div></div>';
 
   const actions = document.createElement('div');
   actions.className = 'card-actions';
   actions.innerHTML = isChosen
     ? '<span class="inline-success">✓ 已選這家</span>'
-    : '<button class="btn btn-teal" onclick="chooseRestaurant(' + rowIndex + ', \'' + esc(altGroupId) + '\', this)">選這家</button>';
+    : '<button class="btn btn-teal" onclick="chooseRestaurant(' + rowIndex + ', \'' + esc(altGroupId) + '\', \'' + esc(trip) + '\', this)">選這家</button>';
   card.appendChild(actions);
-
   return card;
 }
 
-function renderNfc() {
+function buildNfcList(missions) {
   const wrap = document.createElement('div');
-  const missions = viewData.missions || [];
-
-  if (!missions.length) {
-    const empty = document.createElement('div');
-    empty.className = 'no-items';
-    empty.textContent = '📎 尚無任務';
-    return (wrap.appendChild(empty), wrap);
-  }
-
+  if (!missions.length) { wrap.appendChild(elNoItems('📎 尚無任務')); return wrap; }
   missions.forEach(m => {
     const url = (m['LIFF URL'] || '').trim();
     const row = document.createElement('div');
@@ -493,26 +774,17 @@ function renderNfc() {
     row.innerHTML =
       '<div class="nfc-info">' +
         '<div class="nfc-title">🎯 ' + esc(m['Item'] || '') + '</div>' +
-        (url ? '<div class="nfc-url">' + esc(url) + '</div>'
-             : '<div class="nfc-missing">尚未產生連結 — 請於 GAS 執行「Auto-fill LIFF URLs」</div>') +
+        (url ? '<div class="nfc-url">' + esc(url) + '</div>' : '<div class="nfc-missing">尚未產生連結 — 請於 GAS 執行「Auto-fill LIFF URLs」</div>') +
       '</div>' +
-      (url ? '<button class="btn btn-copy" onclick="copyUrl(\'' + esc(url) + '\', this)">複製連結</button>' : '');
+      (url ? '<button class="btn btn-copy" onclick="copyText(\'' + esc(url) + '\', this)">複製連結</button>' : '');
     wrap.appendChild(row);
   });
-
   return wrap;
 }
 
-// ── Actions ───────────────────────────────────────────────────────────────────
-
-// Two-tap confirmation — window.confirm() is silently suppressed inside the
-// LINE in-app browser (always returns false), so a native confirm dialog
-// can never be used here. First tap arms the button; a second tap on the
-// same row within a few seconds actually sends.
 function onSendNowClick(rowIndex, btn) {
-  if (pendingSend === rowIndex) {
-    sendNow(rowIndex, btn);
-  } else {
+  if (pendingSend === rowIndex) { sendNow(rowIndex, btn); }
+  else {
     pendingSend = rowIndex;
     render();
     setTimeout(() => { if (pendingSend === rowIndex) { pendingSend = null; render(); } }, 4000);
@@ -521,50 +793,649 @@ function onSendNowClick(rowIndex, btn) {
 
 async function sendNow(rowIndex, btn) {
   pendingSend = null;
-  btn.disabled = true;
-  btn.textContent = '送出中…';
+  btn.disabled = true; btn.textContent = '送出中…';
   try {
-    const result = await callPost({ action: 'sendNow', rowIndex });
+    const result = await apiPost('sendNow', { rowIndex });
     if (result.ok) {
       showToast('✓ 已推送任務通知');
-      const m = (viewData.missions || []).find(x => x['_rowIndex'] === rowIndex);
-      if (m) m['Triggered At'] = result.triggeredAt;
+      orgViewCache = {}; orgMissionsCache = null;
       render();
-    } else {
-      alert('錯誤: ' + (result.error || '請稍後再試'));
-      render();
-    }
-  } catch (err) {
-    alert('網路錯誤: ' + err.message);
-    render();
-  }
+    } else { showToast('錯誤: ' + (result.error || '請稍後再試')); render(); }
+  } catch (err) { showToast('網路錯誤: ' + err.message); render(); }
 }
 
-async function chooseRestaurant(rowIndex, altGroupId, btn) {
-  btn.disabled = true;
-  btn.textContent = '選擇中…';
+async function chooseRestaurant(rowIndex, altGroupId, trip, btn) {
+  btn.disabled = true; btn.textContent = '選擇中…';
   try {
-    const result = await callPost({ action: 'chooseRestaurant', rowIndex, altGroupId });
+    const result = await apiPost('chooseRestaurant', { rowIndex, altGroupId });
     if (result.ok) {
-      await loadOrganizerView(currentTrip);
+      if (trip) delete orgViewCache[trip];
+      tripItemsCache = {};
       showToast('✓ 已更新選擇');
-    } else {
-      btn.disabled = false; btn.textContent = '選這家';
-      alert('錯誤: ' + (result.error || '請稍後再試'));
-    }
-  } catch (err) {
-    btn.disabled = false; btn.textContent = '選這家';
-    alert('網路錯誤: ' + err.message);
+      render();
+    } else { btn.disabled = false; btn.textContent = '選這家'; showToast('錯誤: ' + (result.error || '請稍後再試')); }
+  } catch (err) { btn.disabled = false; btn.textContent = '選這家'; showToast('網路錯誤: ' + err.message); }
+}
+
+// ── Itineraries (cross-trip, one trip at a time) ─────────────────────────────
+
+async function renderItineraries() {
+  const app = document.getElementById('app');
+  const today = todayStr();
+  const trips = await ensureTrips();
+  const ordered = orderTripsForItineraries(trips, today);
+  if (!itinerariesSelectedTrip || !trips.some(t => t['Trip'] === itinerariesSelectedTrip)) {
+    itinerariesSelectedTrip = ordered[0] ? ordered[0]['Trip'] : null;
+  }
+
+  const wrap = document.createElement('div');
+  wrap.innerHTML =
+    '<select class="form-select" style="margin-bottom:14px" onchange="itinerariesSelectedTrip=this.value; render()">' +
+      ordered.map(t => '<option value="' + esc(t['Trip']) + '"' + (t['Trip'] === itinerariesSelectedTrip ? ' selected' : '') + '>' + esc(t['Location'] || t['Trip']) + '</option>').join('') +
+    '</select><div id="itin-content"></div>';
+  app.innerHTML = '';
+  app.appendChild(wrap);
+
+  if (!itinerariesSelectedTrip) { document.getElementById('itin-content').innerHTML = '<div class="no-items">尚無行程資料</div>'; return; }
+  const items = await ensureTripItems(itinerariesSelectedTrip);
+  renderDayGroupedItems(document.getElementById('itin-content'), items);
+}
+
+// Soonest-upcoming first > future (closest→farthest) > past (alphabetical) — per
+// Tripmate Webpage Structure.md §Organiser/3.
+function orderTripsForItineraries(trips, today) {
+  const upcoming = trips.filter(t => t['Start Date'] && t['Start Date'] >= today).sort((a,b) => String(a['Start Date']).localeCompare(String(b['Start Date'])));
+  const past     = trips.filter(t => !t['Start Date'] || t['Start Date'] < today).sort((a,b) => String(a['Trip']).localeCompare(String(b['Trip'])));
+  return upcoming.concat(past);
+}
+
+function renderDayGroupedItems(container, items) {
+  container.innerHTML = '';
+  const { dayGroups, undated } = groupByDay(items);
+  if (!dayGroups.length && !undated.length) { container.innerHTML = '<div class="no-items">尚無行程資料</div>'; return; }
+  dayGroups.forEach((g, i) => {
+    const dayWrap = document.createElement('div');
+    dayWrap.innerHTML =
+      '<div class="day-header" onclick="this.nextElementSibling.classList.toggle(\'collapsed\')">' +
+        '<div class="day-circle">' + (i + 1) + '</div>' +
+        '<div class="day-label">' + esc(g.day) + '</div>' +
+        '<div class="day-toggle">▾</div>' +
+      '</div><div class="day-items"></div>';
+    container.appendChild(dayWrap);
+    renderItemList(dayWrap.querySelector('.day-items'), g.items);
+  });
+  if (undated.length) {
+    const hdr = document.createElement('div');
+    hdr.className = 'day-header';
+    hdr.innerHTML = '<div class="day-label" style="color:var(--muted)">未定日期</div>';
+    container.appendChild(hdr);
+    const list = document.createElement('div');
+    container.appendChild(list);
+    renderItemList(list, undated);
   }
 }
 
-function copyUrl(url, btn) {
-  const done = () => { const old = btn.textContent; btn.textContent = '已複製 ✓'; setTimeout(() => btn.textContent = old, 1500); };
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(url).then(done).catch(() => fallbackCopy(url, done));
-  } else {
-    fallbackCopy(url, done);
+function renderItemList(container, items) {
+  const altSeen = new Set(), altBuckets = {};
+  items.forEach(it => { const id = it['Alt Group ID']; if (id) (altBuckets[id] = altBuckets[id] || []).push(it); });
+  items.forEach(it => {
+    const id = it['Alt Group ID'];
+    if (id) {
+      if (altSeen.has(id)) return;
+      altSeen.add(id);
+      altBuckets[id].forEach((m, i) => {
+        if (i > 0) { const hr = document.createElement('hr'); hr.className = 'alt-divider'; container.appendChild(hr); }
+        container.appendChild(buildItineraryCard(m));
+      });
+    } else {
+      container.appendChild(buildItineraryCard(it));
+    }
+  });
+}
+
+function buildItineraryCard(item) {
+  const isMission = !!item['Is Mission'];
+  const isDone = !!item['Completed At'];
+  const isChosen = item['Is Chosen'] === true || item['Is Chosen'] === 'true';
+  const emoji = EMOJI[item['Category']] || '•';
+  const timeStr = fmtTime(item['Start Time'], item['End Time']);
+  const note = (item['Note'] || '').trim();
+
+  const card = document.createElement('div');
+  card.className = 'card' + (isMission ? ' mission' : '') + (isChosen ? ' chosen' : '');
+  card.innerHTML =
+    '<div class="card-body"><div class="card-top">' +
+      '<div class="cat-icon">' + emoji + '</div>' +
+      '<div class="card-info">' +
+        '<div class="card-title">' + esc(item['Item'] || '') + (isDone ? '<span class="pill pill-done">✓</span>' : '') + '</div>' +
+        (timeStr ? '<div class="card-time">🕐 ' + timeStr + '</div>' : '') +
+        (note ? '<div class="card-note">' + esc(note) + '</div>' : '') +
+      '</div>' +
+    '</div></div>';
+  return card;
+}
+
+// ── Rosters ───────────────────────────────────────────────────────────────────
+
+async function buildRosterList(roster) {
+  const wrap = document.createElement('div');
+  if (!roster.length) { wrap.innerHTML = '<div class="no-items">尚無成員資料</div>'; return wrap; }
+  roster.forEach(m => {
+    const card = document.createElement('div');
+    card.className = 'roster-card';
+    card.onclick = () => { selectedMember = selectedMember === m.userId ? null : m.userId; render(); };
+    card.innerHTML =
+      (m.pictureUrl ? '<img class="roster-avatar" src="' + esc(m.pictureUrl) + '">' : '<div class="roster-avatar"></div>') +
+      '<div style="flex:1;min-width:0">' +
+        '<div class="roster-name">' + esc(m.displayName) + (m.isMe ? ' (你)' : '') + '</div>' +
+        '<div class="tag-row">' +
+          (m.trips.length ? m.trips.map(t => '<span class="tag">' + esc(t) + '</span>').join('') : '<span class="tag">尚無行程</span>') +
+        '</div>' +
+      '</div>';
+    wrap.appendChild(card);
+    if (selectedMember === m.userId) {
+      const detail = document.createElement('div');
+      detail.className = 'form-card';
+      detail.style.marginTop = '-6px';
+      detail.innerHTML =
+        '<div class="form-label">參加行程</div>' +
+        '<div class="tag-row">' + (m.trips.length ? m.trips.map(t => '<span class="tag">' + esc(t) + '</span>').join('') : '<span class="tag">無</span>') + '</div>' +
+        '<div class="form-label">已獲成就</div>' +
+        '<div class="tag-row">' + (m.achievements.length ? m.achievements.map(a => '<span class="tag achv-tag">🏅 ' + esc(a) + '</span>').join('') : '<span class="tag">尚無</span>') + '</div>';
+      wrap.appendChild(detail);
+    }
+  });
+  return wrap;
+}
+
+async function renderRoster() {
+  const app = document.getElementById('app');
+  const trips = await ensureTrips();
+  const roster = await ensureRoster(true);
+
+  const wrap = document.createElement('div');
+  wrap.innerHTML =
+    '<div class="chips" id="roster-trip-chips"></div>' +
+    '<button class="btn btn-teal btn-block" style="margin-bottom:14px" onclick="inviteMember()">+ 邀請成員</button>' +
+    '<div id="roster-list"></div>';
+  app.innerHTML = '';
+  app.appendChild(wrap);
+
+  const chipsEl = document.getElementById('roster-trip-chips');
+  trips.forEach(t => {
+    const active = rosterTripFilter.indexOf(t['Trip']) >= 0;
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (active ? ' active' : '');
+    chip.textContent = t['Location'] || t['Trip'];
+    chip.onclick = () => {
+      rosterTripFilter = active ? rosterTripFilter.filter(x => x !== t['Trip']) : rosterTripFilter.concat([t['Trip']]);
+      render();
+    };
+    chipsEl.appendChild(chip);
+  });
+
+  const filtered = rosterTripFilter.length
+    ? roster.filter(m => m.trips.some(t => rosterTripFilter.indexOf(t) >= 0))
+    : roster;
+  document.getElementById('roster-list').appendChild(await buildRosterList(filtered));
+}
+
+async function inviteMember() {
+  const home = await ensureHome();
+  if (!home.liffBaseUrl) { showToast('尚未設定 LIFF_BASE_URL'); return; }
+  copyText(home.liffBaseUrl);
+}
+
+// ── Missions (cross-trip catalog) ────────────────────────────────────────────
+
+async function renderMissions() {
+  const app = document.getElementById('app');
+  const trips = await ensureTrips();
+
+  const wrap = document.createElement('div');
+  wrap.innerHTML = '<div class="chips" id="missions-trip-chips"></div><div id="missions-list"></div>';
+  app.innerHTML = '';
+  app.appendChild(wrap);
+
+  const chipsEl = document.getElementById('missions-trip-chips');
+  trips.forEach(t => {
+    const active = missionsTripFilter.indexOf(t['Trip']) >= 0;
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (active ? ' active' : '');
+    chip.textContent = t['Location'] || t['Trip'];
+    chip.onclick = () => {
+      missionsTripFilter = active ? missionsTripFilter.filter(x => x !== t['Trip']) : missionsTripFilter.concat([t['Trip']]);
+      orgMissionsCache = null;
+      render();
+    };
+    chipsEl.appendChild(chip);
+  });
+
+  if (!orgMissionsCache) {
+    const res = await apiGet('getOrganizerMissions', missionsTripFilter.length ? { trips: missionsTripFilter.join(',') } : {});
+    orgMissionsCache = res.missions || [];
   }
+  const listEl = document.getElementById('missions-list');
+  if (!orgMissionsCache.length) { listEl.appendChild(elNoItems('🎯 沒有符合條件的任務')); return; }
+  orgMissionsCache.forEach(m => listEl.appendChild(buildMissionCard(m, true)));
+}
+
+// ── Achievements ──────────────────────────────────────────────────────────────
+
+function highlightMatch(text, query) {
+  const safe = esc(text);
+  if (!query) return safe;
+  const idx = safe.toLowerCase().indexOf(query.toLowerCase());
+  if (idx < 0) return safe;
+  return safe.slice(0, idx) + '<mark>' + safe.slice(idx, idx + query.length) + '</mark>' + safe.slice(idx + query.length);
+}
+
+async function buildAchievementCards(achievements) {
+  const wrap = document.createElement('div');
+  if (!achievements.length) { wrap.innerHTML = '<div class="no-items">尚無成就</div>'; return wrap; }
+  const roster = await ensureRoster();
+
+  achievements.forEach(a => {
+    const card = document.createElement('div');
+    card.className = 'achv-card' + (a['Status'] === 'Unpublished' ? ' unpublished' : '');
+    const tripTags = String(a['Trip Tags'] || '').split(',').map(s => s.trim()).filter(Boolean);
+    const statusLabel = { Published: '已發布', Unpublished: '未發布', Expired: '已過期' }[a['Status']] || a['Status'];
+
+    card.innerHTML =
+      '<div class="achv-top">' +
+        '<div class="achv-emoji">' + esc(a['Emoji'] || '🏅') + '</div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div class="achv-title">' + highlightMatch(a['Title'] || '', achievementsSearch) + '<span class="pill pill-status">' + esc(statusLabel) + '</span></div>' +
+          '<div class="achv-desc">' + highlightMatch(a['Description'] || '', achievementsSearch) + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="tag-row" style="margin-top:10px">' +
+        tripTags.map(t => '<span class="tag">' + esc(t) + '</span>').join('') +
+        (a.members || []).map(m => '<span class="tag achv-tag">' + esc(m.displayName) + '</span>').join('') +
+      '</div>';
+
+    const actions = document.createElement('div');
+    actions.className = 'card-actions';
+    actions.style.padding = '10px 0 0';
+    actions.innerHTML =
+      '<button class="btn btn-ghost btn-sm" onclick="toggleAchievementStatus(\'' + a['ID'] + '\', \'' + a['Status'] + '\')">' +
+        (a['Status'] === 'Published' ? '下架' : '發布') +
+      '</button>' +
+      '<button class="btn btn-teal btn-sm" onclick="awardingAchievementId = awardingAchievementId===\'' + a['ID'] + '\' ? null : \'' + a['ID'] + '\'; render()">頒發</button>';
+    card.appendChild(actions);
+
+    if (awardingAchievementId === a['ID']) {
+      const picker = document.createElement('div');
+      picker.className = 'member-select';
+      roster.forEach(m => {
+        const btn = document.createElement('button');
+        btn.className = 'chip';
+        btn.textContent = m.displayName;
+        btn.onclick = () => awardAchievement(a['ID'], m.userId);
+        picker.appendChild(btn);
+      });
+      card.appendChild(picker);
+    }
+    wrap.appendChild(card);
+  });
+  return wrap;
+}
+
+async function renderAchievements() {
+  const app = document.getElementById('app');
+  const trips = await ensureTrips();
+  const all = await ensureAchievements();
+
+  let filtered = all;
+  if (achievementsTripFilter.length) {
+    filtered = filtered.filter(a => {
+      const tags = String(a['Trip Tags'] || '').split(',').map(s => s.trim());
+      return achievementsTripFilter.some(t => tags.indexOf(t) >= 0);
+    });
+  }
+  if (achievementsSearch.trim()) {
+    const q = achievementsSearch.trim().toLowerCase();
+    filtered = filtered.filter(a => (a['Title'] || '').toLowerCase().indexOf(q) >= 0 || (a['Description'] || '').toLowerCase().indexOf(q) >= 0);
+  }
+
+  const wrap = document.createElement('div');
+  wrap.innerHTML =
+    '<input class="search-input" id="achv-search-input" placeholder="搜尋成就…" value="' + esc(achievementsSearch) + '" oninput="achievementsSearch=this.value; rerenderPreservingFocus()">' +
+    '<div class="chips" id="achv-trip-chips"></div>' +
+    '<button class="btn btn-teal btn-block" style="margin-bottom:14px" onclick="achievementFormOpen=!achievementFormOpen; render()">' + (achievementFormOpen ? '取消' : '+ 新增成就') + '</button>' +
+    '<div id="achv-form-slot"></div>' +
+    '<div id="achv-cards"></div>';
+  app.innerHTML = '';
+  app.appendChild(wrap);
+
+  const chipsEl = document.getElementById('achv-trip-chips');
+  trips.forEach(t => {
+    const active = achievementsTripFilter.indexOf(t['Trip']) >= 0;
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (active ? ' active' : '');
+    chip.textContent = t['Location'] || t['Trip'];
+    chip.onclick = () => {
+      achievementsTripFilter = active ? achievementsTripFilter.filter(x => x !== t['Trip']) : achievementsTripFilter.concat([t['Trip']]);
+      render();
+    };
+    chipsEl.appendChild(chip);
+  });
+
+  if (achievementFormOpen) document.getElementById('achv-form-slot').appendChild(buildAchievementForm());
+  document.getElementById('achv-cards').appendChild(await buildAchievementCards(filtered));
+}
+
+function buildAchievementForm() {
+  const card = document.createElement('div');
+  card.className = 'form-card';
+  card.innerHTML =
+    '<div class="form-label">名稱</div><input class="form-input" id="af-title" placeholder="例如：市場尋寶王">' +
+    '<div class="form-label">表情符號</div><input class="form-input" id="af-emoji" placeholder="🏅" value="🏅">' +
+    '<div class="form-label">說明</div><textarea class="form-input" id="af-desc" placeholder="如何獲得這個成就？"></textarea>' +
+    '<div class="form-label">適用行程（逗號分隔，留空 = 不限）</div><input class="form-input" id="af-trips" placeholder="例如 Summer26,Winter2025">' +
+    '<button class="btn btn-coral btn-block" style="margin-top:12px" onclick="submitCreateAchievement(this)">建立成就</button>';
+  return card;
+}
+
+async function submitCreateAchievement(btn) {
+  const title = document.getElementById('af-title').value.trim();
+  if (!title) return;
+  btn.disabled = true; btn.textContent = '建立中…';
+  try {
+    const result = await apiPost('createAchievement', {
+      title,
+      emoji: document.getElementById('af-emoji').value.trim() || '🏅',
+      description: document.getElementById('af-desc').value.trim(),
+      tripTags: document.getElementById('af-trips').value.trim(),
+      status: 'Unpublished'
+    });
+    if (result.ok) {
+      achievementFormOpen = false;
+      showToast('✓ 已建立成就「' + title + '」');
+      await ensureAchievements(true);
+      render();
+    } else { showToast('錯誤: ' + (result.error || '請稍後再試')); btn.disabled = false; btn.textContent = '建立成就'; }
+  } catch (err) { showToast('網路錯誤: ' + err.message); btn.disabled = false; btn.textContent = '建立成就'; }
+}
+
+async function toggleAchievementStatus(id, currentStatus) {
+  const newStatus = currentStatus === 'Published' ? 'Unpublished' : 'Published';
+  try {
+    const result = await apiPost('updateAchievement', { id, status: newStatus });
+    if (result.ok) { showToast('✓ 已更新'); await ensureAchievements(true); render(); }
+    else showToast('錯誤: ' + (result.error || '請稍後再試'));
+  } catch (err) { showToast('網路錯誤: ' + err.message); }
+}
+
+async function awardAchievement(achievementId, awardUserId) {
+  try {
+    const result = await apiPost('awardAchievement', { achievementId, awardUserId });
+    if (result.ok) {
+      awardingAchievementId = null;
+      showToast('✓ 已頒發成就');
+      await ensureAchievements(true);
+      render();
+    } else showToast('錯誤: ' + (result.error || '請稍後再試'));
+  } catch (err) { showToast('網路錯誤: ' + err.message); }
+}
+
+// ── Packing List ──────────────────────────────────────────────────────────────
+
+function renderPackingCategoryList(container, items, checkedSet, editable) {
+  const byCategory = {};
+  items.forEach(it => { (byCategory[it['Category']] = byCategory[it['Category']] || []).push(it); });
+
+  Object.keys(byCategory).forEach(cat => {
+    const section = document.createElement('div');
+    section.className = 'pack-category';
+    const titleRow = document.createElement('div');
+    titleRow.className = 'pack-category-title';
+    titleRow.innerHTML = '<span>' + esc(cat) + '</span>';
+    section.appendChild(titleRow);
+
+    byCategory[cat].forEach(it => {
+      const isTagged = checkedSet ? checkedSet.has(it['ID']) : true;
+      const label = document.createElement('label');
+      label.className = 'pack-item' + (isTagged ? '' : ' untagged');
+      label.innerHTML =
+        '<input type="checkbox" ' + (isTagged ? 'checked' : '') + (editable ? '' : ' disabled') + '>' +
+        highlightMatch(it['Item'] || '', packingSearch) +
+        (it['Note'] ? ' <span style="color:var(--muted);font-size:11px">(' + esc(it['Note']) + ')</span>' : '');
+      if (editable) {
+        label.querySelector('input').onchange = (e) => {
+          if (e.target.checked) checkedSet.add(it['ID']); else checkedSet.delete(it['ID']);
+          label.classList.toggle('untagged', !e.target.checked);
+        };
+      }
+      section.appendChild(label);
+    });
+
+    if (editable) {
+      const addRow = document.createElement('div');
+      addRow.className = 'add-item-row';
+      addRow.innerHTML = '<input class="form-input" placeholder="新增' + esc(cat) + '項目…"><button class="btn btn-ghost btn-sm">新增</button>';
+      const input = addRow.querySelector('input');
+      addRow.querySelector('button').onclick = () => addPackingItem(cat, input.value.trim(), addRow.querySelector('button'));
+      section.appendChild(addRow);
+    }
+    container.appendChild(section);
+  });
+}
+
+async function renderPacking() {
+  const app = document.getElementById('app');
+  const trips = await ensureTrips();
+  const items = await ensurePacking();
+
+  if (!packingSelectedTrip && trips.length) packingSelectedTrip = trips[0]['Trip'];
+  if (packingSelectedTrip && !packingChecked) {
+    packingChecked = new Set(
+      items.filter(it => String(it['Trip Tags'] || '').split(',').map(s=>s.trim()).indexOf(packingSelectedTrip) >= 0).map(it => it['ID'])
+    );
+  }
+
+  const wrap = document.createElement('div');
+  wrap.innerHTML =
+    '<select class="form-select" style="margin-bottom:10px" onchange="packingSelectedTrip=this.value; packingChecked=null; render()">' +
+      trips.map(t => '<option value="' + esc(t['Trip']) + '"' + (t['Trip'] === packingSelectedTrip ? ' selected' : '') + '>' + esc(t['Location'] || t['Trip']) + '</option>').join('') +
+    '</select>' +
+    '<input class="search-input" id="pack-search-input" placeholder="搜尋物品…" value="' + esc(packingSearch) + '" oninput="packingSearch=this.value; rerenderPreservingFocus()">' +
+    '<div id="pack-list"></div>' +
+    '<button class="btn btn-coral btn-block" style="margin-top:6px" onclick="submitUpdatePackingTags(this)">更新打包清單</button>';
+  app.innerHTML = '';
+  app.appendChild(wrap);
+
+  const q = packingSearch.trim().toLowerCase();
+  const visible = q ? items.filter(it => (it['Item'] || '').toLowerCase().indexOf(q) >= 0) : items;
+  renderPackingCategoryList(document.getElementById('pack-list'), visible, packingChecked, true);
+}
+
+async function addPackingItem(category, item, btn) {
+  if (!item) return;
+  btn.disabled = true;
+  try {
+    const result = await apiPost('addPackingItem', { category, item });
+    if (result.ok) { showToast('✓ 已新增項目'); await ensurePacking(true); packingChecked = null; render(); }
+    else { showToast('錯誤: ' + (result.error || '請稍後再試')); btn.disabled = false; }
+  } catch (err) { showToast('網路錯誤: ' + err.message); btn.disabled = false; }
+}
+
+async function submitUpdatePackingTags(btn) {
+  if (!packingSelectedTrip) return;
+  btn.disabled = true; btn.textContent = '更新中…';
+  try {
+    const result = await apiPost('updatePackingTags', { trip: packingSelectedTrip, itemIds: Array.from(packingChecked) });
+    if (result.ok) { showToast('✓ 已更新「' + packingSelectedTrip + '」的打包清單'); await ensurePacking(true); }
+    else showToast('錯誤: ' + (result.error || '請稍後再試'));
+  } catch (err) { showToast('網路錯誤: ' + err.message); }
+  btn.disabled = false; btn.textContent = '更新打包清單';
+}
+
+// ── Tasks ─────────────────────────────────────────────────────────────────────
+
+async function renderTasks() {
+  const app = document.getElementById('app');
+  const trips = await ensureTrips();
+
+  const wrap = document.createElement('div');
+  wrap.innerHTML =
+    '<div class="chips" id="tasks-trip-chips"></div>' +
+    '<div class="chips">' +
+      [['open','未完成'], ['done','已完成'], ['allStatus','全部']].map(([k,label]) =>
+        '<div class="chip' + (tasksStatusFilter === k ? ' active' : '') + '" onclick="tasksStatusFilter=\'' + k + '\'; render()">' + label + '</div>'
+      ).join('') +
+    '</div>' +
+    '<div class="add-item-row" style="margin-bottom:14px">' +
+      '<input class="form-input" id="new-task-input" placeholder="新增待辦事項…">' +
+      '<button class="btn btn-teal btn-sm" onclick="submitCreateTask(this)">新增</button>' +
+    '</div>' +
+    '<div id="tasks-list"></div>';
+  app.innerHTML = '';
+  app.appendChild(wrap);
+
+  const chipsEl = document.getElementById('tasks-trip-chips');
+  const allChip = document.createElement('div');
+  allChip.className = 'chip' + (tasksTripFilter === 'all' ? ' active' : '');
+  allChip.textContent = '全部行程';
+  allChip.onclick = () => { tasksTripFilter = 'all'; tasksCache = null; render(); };
+  chipsEl.appendChild(allChip);
+  const generalChip = document.createElement('div');
+  generalChip.className = 'chip' + (tasksTripFilter === '' ? ' active' : '');
+  generalChip.textContent = '一般';
+  generalChip.onclick = () => { tasksTripFilter = ''; tasksCache = null; render(); };
+  chipsEl.appendChild(generalChip);
+  trips.forEach(t => {
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (tasksTripFilter === t['Trip'] ? ' active' : '');
+    chip.textContent = t['Location'] || t['Trip'];
+    chip.onclick = () => { tasksTripFilter = t['Trip']; tasksCache = null; render(); };
+    chipsEl.appendChild(chip);
+  });
+
+  if (!tasksCache) {
+    const params = tasksTripFilter === 'all' ? {} : { trips: tasksTripFilter === '' ? '__general__' : tasksTripFilter };
+    const res = await apiGet('getTasks', params);
+    tasksCache = res.tasks || [];
+  }
+  let filtered = tasksCache;
+  if (tasksStatusFilter === 'open') filtered = filtered.filter(t => t['Status'] !== 'done');
+  else if (tasksStatusFilter === 'done') filtered = filtered.filter(t => t['Status'] === 'done');
+
+  const listEl = document.getElementById('tasks-list');
+  if (!filtered.length) { listEl.appendChild(elNoItems('✅ 沒有符合條件的待辦事項')); return; }
+  filtered.forEach(t => {
+    const row = document.createElement('div');
+    row.className = 'task-row' + (t['Status'] === 'done' ? ' done' : '');
+    row.innerHTML =
+      '<input type="checkbox" ' + (t['Status'] === 'done' ? 'checked' : '') + '>' +
+      '<span class="task-text">' + esc(t['Task']) + '</span>' +
+      (t['Trip'] ? '<span class="task-trip-tag">' + esc(t['Trip']) + '</span>' : '<span class="task-trip-tag">一般</span>');
+    row.querySelector('input').onchange = () => toggleTask(t['ID']);
+    listEl.appendChild(row);
+  });
+}
+
+async function submitCreateTask(btn) {
+  const input = document.getElementById('new-task-input');
+  const task = input.value.trim();
+  if (!task) return;
+  btn.disabled = true;
+  try {
+    const trip = (tasksTripFilter === 'all' || tasksTripFilter === undefined) ? '' : tasksTripFilter;
+    const result = await apiPost('createTask', { task, trip });
+    if (result.ok) { input.value = ''; showToast('✓ 已新增待辦'); tasksCache = null; homeCache = null; render(); }
+    else showToast('錯誤: ' + (result.error || '請稍後再試'));
+  } catch (err) { showToast('網路錯誤: ' + err.message); }
+  btn.disabled = false;
+}
+
+async function toggleTask(id) {
+  try {
+    const result = await apiPost('toggleTask', { id });
+    if (result.ok) { tasksCache = null; homeCache = null; render(); }
+    else showToast('錯誤: ' + (result.error || '請稍後再試'));
+  } catch (err) { showToast('網路錯誤: ' + err.message); }
+}
+
+// ── Shared small helpers ──────────────────────────────────────────────────────
+
+// Search inputs call this instead of render() directly — a full re-render on
+// every keystroke replaces the <input> DOM node and drops focus/cursor position,
+// which would make typing a search query nearly unusable (one character at a time).
+function rerenderPreservingFocus() {
+  const active = document.activeElement;
+  const id = active && active.id;
+  const selStart = active && active.selectionStart;
+  const selEnd = active && active.selectionEnd;
+  Promise.resolve(render()).then(() => {
+    if (!id) return;
+    const el = document.getElementById(id);
+    if (el && typeof el.focus === 'function') {
+      el.focus();
+      if (selStart != null && el.setSelectionRange) { try { el.setSelectionRange(selStart, selEnd); } catch (e) {} }
+    }
+  });
+}
+
+function elNoItems(text) {
+  const div = document.createElement('div');
+  div.className = 'no-items';
+  div.textContent = text;
+  return div;
+}
+
+function groupByDay(items) {
+  const groups = {}, order = [], undated = [];
+  items.forEach(it => {
+    const day = (it['Start Time'] || '').slice(0, 10);
+    if (!day) { undated.push(it); return; }
+    if (!groups[day]) { groups[day] = []; order.push(day); }
+    groups[day].push(it);
+  });
+  return { dayGroups: order.map(day => ({ day, items: groups[day] })), undated };
+}
+
+function tripColor(trip) {
+  let hash = 0;
+  for (let i = 0; i < trip.length; i++) hash = (hash * 31 + trip.charCodeAt(i)) >>> 0;
+  return TRIP_COLOR_PALETTE[hash % TRIP_COLOR_PALETTE.length];
+}
+
+function fmtTime(start, end) {
+  const s = String(start || ''), e = String(end || '');
+  const sDate = s.slice(0, 10), eDate = e.slice(0, 10);
+  const sTime = s.slice(11, 16), eTime = e.slice(11, 16);
+  if (!sTime) return '';
+  if (eDate && eDate !== sDate) return sDate.slice(5) + ' ' + sTime + ' → ' + eDate.slice(5) + ' ' + eTime;
+  return eTime ? sTime + ' – ' + eTime : sTime;
+}
+
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0');
+}
+
+function esc(str) {
+  return String(str || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function copyText(text, btn) {
+  const done = () => {
+    showToast('✓ 已複製連結');
+    if (btn) { const old = btn.textContent; btn.textContent = '已複製 ✓'; setTimeout(() => btn.textContent = old, 1500); }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+  } else { fallbackCopy(text, done); }
 }
 
 function fallbackCopy(text, done) {
@@ -574,36 +1445,20 @@ function fallbackCopy(text, done) {
   document.body.removeChild(ta);
 }
 
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2000);
+// ── Mock mode (?mock=1) — local verification without a live GAS deployment.
+// See mock/fixtures.js. Never active unless the URL explicitly opts in.
+const MOCK_MODE = new URLSearchParams(location.search).get('mock') === '1';
+
+function bootstrap() {
+  if (!MOCK_MODE) { init(); return; }
+  const s = document.createElement('script');
+  s.src = '../mock/fixtures.js';
+  s.onload = () => { window.installMockShims(); init(); };
+  s.onerror = () => { document.getElementById('loading').innerHTML = '<div class="no-items">找不到 mock/fixtures.js</div>'; };
+  document.head.appendChild(s);
 }
 
-// ── Utilities ─────────────────────────────────────────────────────────────────
-
-function fmtTime(start, end) {
-  const s = String(start || '').slice(11, 16);
-  const e = String(end   || '').slice(11, 16);
-  if (!s) return '';
-  return e ? s + ' – ' + e : s;
-}
-
-function esc(str) {
-  return String(str || '')
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function showError(msg) {
-  document.getElementById('loading').style.display = 'none';
-  const el = document.getElementById('error-msg');
-  el.textContent = msg;
-  el.style.display = 'block';
-}
-
-init();
+bootstrap();
 </script>
 </body>
 </html>
