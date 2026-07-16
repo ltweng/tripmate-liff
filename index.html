@@ -205,6 +205,14 @@
 
     /* ── Achievements ─────────────────────────────────── */
     .achv-card { text-align: center; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px 16px; color: var(--muted); }
+    .achv-item-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 10px; }
+    .achv-item-card.locked .achv-emoji { filter: grayscale(1); opacity: 0.55; }
+    .achv-item-card.locked .achv-title { color: var(--muted); }
+    .achv-top { display: flex; align-items: center; gap: 10px; }
+    .achv-emoji { font-size: 24px; flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%; background: var(--bg); display: flex; align-items: center; justify-content: center; }
+    .achv-title { font-weight: 700; font-size: 14.5px; }
+    .achv-desc { font-size: 12px; color: var(--muted); margin-top: 3px; }
+    .achv-progress { font-size: 11px; color: var(--teal); font-weight: 700; margin-top: 5px; }
 
     /* ── Packing list ─────────────────────────────────── */
     .pack-category { margin-bottom: 14px; }
@@ -267,7 +275,7 @@
 <script>
 // ── CONFIG — only non-secret values live here ────────────────────────────────
 const CONFIG = {
-  liffId: '2010468064-uKRXbFfR', // participant LIFF app's own ID
+  liffId: '2010468064-uKRXbFfR', // participant LIFF app's own ID (per "LIFF ID.md"; 4RvCpshe is the ORGANISER app)
   gasUrl: 'https://script.google.com/macros/s/AKfycbx4yqj479yhsIAOUBkIWFKNvlKFnTCVZQ18uyiaxXtoGXJURpZ0bw26zgBsiqYu2rjQ/exec'
   // No secret here — GAS validates your LINE userId instead (set by liff.getProfile)
 };
@@ -312,6 +320,7 @@ let myTrips = [];             // cache, from getMyTrips
 let rosterCache = null;       // cache, from getRoster
 let tripItemsCache = {};      // trip -> items (getTimeline scope=all)
 let missionsCache = null;     // cache, from getMyMissions
+let achievementsCache = null; // cache, from getAchievements
 
 // Onboarding state
 let ob = { stage: 1, trip: null, tripInput: '', clauses: [], nicknameDraft: '', error: '' };
@@ -334,7 +343,7 @@ async function init() {
     if (!liff.isLoggedIn()) { liff.login(); return; }
 
     const profile = await withTimeout(liff.getProfile(), 10000, 'liff.getProfile()');
-    currentUser = { userId: profile.userId, displayName: profile.displayName };
+    currentUser = { userId: profile.userId, displayName: profile.displayName, pictureUrl: profile.pictureUrl || '' };
     document.getElementById('drawer-name').textContent = profile.displayName;
 
     const params = new URLSearchParams(window.location.search);
@@ -386,6 +395,13 @@ async function ensureMissions(force) {
   return missionsCache;
 }
 
+async function ensureAchievements(force) {
+  if (achievementsCache && !force) return achievementsCache;
+  const res = await apiGet('getAchievements');
+  achievementsCache = res.achievements || [];
+  return achievementsCache;
+}
+
 // ── API helpers ───────────────────────────────────────────────────────────────
 
 async function apiGet(action, params) {
@@ -400,7 +416,16 @@ async function apiPost(action, body) {
     // text/plain avoids a CORS preflight (OPTIONS), which Apps Script Web Apps
     // don't implement — doPost still JSON.parses the raw body regardless of header.
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(Object.assign({ action, userId: currentUser ? currentUser.userId : '' }, body || {}))
+    // displayName/pictureUrl ride along on every call (ignored by actions that
+    // don't need them) so joinTrip can self-register a brand-new LINE user —
+    // see PUBLIC_ACTIONS_POST in Code.gs for why that registration has to
+    // happen there instead of only via the OA follow webhook.
+    body: JSON.stringify(Object.assign({
+      action,
+      userId: currentUser ? currentUser.userId : '',
+      displayName: currentUser ? currentUser.displayName : '',
+      pictureUrl: currentUser ? currentUser.pictureUrl : ''
+    }, body || {}))
   });
   return res.json();
 }
@@ -471,7 +496,7 @@ async function render() {
     if (currentView === 'tripDetail')   return await renderTripDetail();
     if (currentView === 'roster')       return await renderRoster();
     if (currentView === 'missions')     return await renderMissions();
-    if (currentView === 'achievements') return renderAchievements();
+    if (currentView === 'achievements') return await renderAchievements();
     if (currentView === 'packing')      return renderPackingGlobal();
     if (currentView === 'profile')      return await renderProfile();
   } catch (err) {
@@ -522,6 +547,7 @@ function renderOnboarding() {
   if (ob.stage === 4) {
     const checkedCount = ob.clauses.filter(c => c.checked).length;
     wrap.innerHTML =
+      '<button class="btn btn-ghost" style="margin-bottom:14px" onclick="obBackToName()">← 返回上一步</button>' +
       '<div class="ob-title">' + esc(ob.trip) + ' 旅行公約</div>' +
       '<div class="ob-text">請勾選所有您可以一同遵守的條文</div>' +
       ob.clauses.map((c, i) =>
@@ -590,6 +616,15 @@ async function obLoadAgreement() {
 
 function obToggleClause(i) {
   ob.clauses[i].checked = !ob.clauses[i].checked;
+}
+
+// Trip is already joined and the name choice already made by the time stage 4
+// renders — going back just re-shows the name step so the user can change
+// their mind; it doesn't re-run joinTrip or clear anything already saved.
+function obBackToName() {
+  ob.stage = 3;
+  ob.error = '';
+  renderOnboarding();
 }
 
 async function obSignAgreement() {
@@ -839,9 +874,33 @@ async function renderMissions() {
 
 // ── Achievements ──────────────────────────────────────────────────────────────
 
-function renderAchievements() {
+async function renderAchievements() {
   const app = document.getElementById('app');
-  app.innerHTML = '<div class="achv-card">🏅<div style="margin-top:8px;font-weight:700">成就系統開發中</div><div style="margin-top:4px;font-size:12px">目前尚未有任何成就發放</div></div>';
+  const achievements = await ensureAchievements();
+  if (!achievements.length) {
+    app.innerHTML = '<div class="achv-card">🏅<div style="margin-top:8px;font-weight:700">尚無成就</div><div style="margin-top:4px;font-size:12px">完成任務來解鎖你的第一個成就吧！</div></div>';
+    return;
+  }
+
+  const wrap = document.createElement('div');
+  achievements.forEach(a => {
+    const card = document.createElement('div');
+    card.className = 'achv-item-card' + (a.earned ? ' earned' : ' locked');
+    const progress = (a.missionTotal > 0 && !a.earned)
+      ? '<div class="achv-progress">🎯 ' + a.missionDone + ' / ' + a.missionTotal + ' 個任務已完成</div>' : '';
+    card.innerHTML =
+      '<div class="achv-top">' +
+        '<div class="achv-emoji">' + esc(a.emoji || '🏅') + '</div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div class="achv-title">' + esc(a.title || '') + (a.earned ? '<span class="pill pill-done">✓ 已獲得</span>' : '') + '</div>' +
+          '<div class="achv-desc">' + esc(a.description || '') + '</div>' +
+          progress +
+        '</div>' +
+      '</div>';
+    wrap.appendChild(card);
+  });
+  app.innerHTML = '';
+  app.appendChild(wrap);
 }
 
 // ── Packing list (global) ────────────────────────────────────────────────────
@@ -989,6 +1048,10 @@ async function completeMission(rowIndex, btn) {
     if (result.ok) {
       missionsCache = null;
       if (currentTrip) tripItemsCache[currentTrip] = null;
+      if (result.awardedAchievements && result.awardedAchievements.length) {
+        achievementsCache = null;
+        alert('🎉 解鎖成就: ' + result.awardedAchievements.map(a => (a.emoji || '🏅') + ' ' + a.title).join('、'));
+      }
       render();
     } else {
       btn.disabled = false; btn.textContent = '完成任務';
@@ -1079,7 +1142,20 @@ function scrollToMission(rowIndex) {
   if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-init();
+// ── Mock mode (?mock=1) — local verification without a live GAS deployment.
+// See mock/fixtures.js. Never active unless the URL explicitly opts in.
+const MOCK_MODE = new URLSearchParams(location.search).get('mock') === '1';
+
+function bootstrap() {
+  if (!MOCK_MODE) { init(); return; }
+  const s = document.createElement('script');
+  s.src = '../mock/fixtures.js';
+  s.onload = () => { window.installMockShims(); init(); };
+  s.onerror = () => { document.getElementById('loading').innerHTML = '<div class="no-items">找不到 mock/fixtures.js</div>'; };
+  document.head.appendChild(s);
+}
+
+bootstrap();
 </script>
 </body>
 </html>
