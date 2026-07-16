@@ -347,6 +347,10 @@ async function init() {
 
     const profile = await withTimeout(liff.getProfile(), 10000, 'liff.getProfile()');
     currentUser = { userId: profile.userId, displayName: profile.displayName };
+    // ID token for server-side identity verification (security fix C1); null
+    // until the LIFF app has the openid scope, which the server tolerates
+    // while LINE_LOGIN_CHANNEL_ID is unset.
+    currentUser.idToken = (typeof liff.getIDToken === 'function' ? liff.getIDToken() : null) || '';
     document.getElementById('drawer-name').textContent = profile.displayName;
 
     navigateTo('home');
@@ -357,11 +361,29 @@ async function init() {
 
 // ── API helpers ───────────────────────────────────────────────────────────────
 
+// A rejected ID token (expired mid-session — LINE issues them with a ~1h life
+// and liff only mints a fresh one on page load) can't be fixed by retrying;
+// the only recovery is reopening the LIFF.
+function handleTokenExpiry(result) {
+  if (result && result.error === 'Unauthorized' && result.reason === 'token') {
+    document.getElementById('app').innerHTML =
+      '<div class="no-items">登入憑證已過期，請關閉此頁面後重新開啟 🙏</div>';
+    return true;
+  }
+  return false;
+}
+
 async function apiGet(action, params) {
-  const qs = new URLSearchParams(Object.assign({ action, userId: currentUser ? currentUser.userId : '' }, params || {}));
+  const qs = new URLSearchParams(Object.assign({
+    action,
+    userId: currentUser ? currentUser.userId : '',
+    idToken: currentUser ? currentUser.idToken : ''
+  }, params || {}));
   const res = await fetch(CONFIG.gasUrl + '?' + qs.toString());
   if (!res.ok) throw new Error('伺服器錯誤 (' + res.status + ')');
-  return res.json();
+  const result = await res.json();
+  handleTokenExpiry(result);
+  return result;
 }
 
 async function apiPost(action, body) {
@@ -370,10 +392,16 @@ async function apiPost(action, body) {
     // text/plain avoids a CORS preflight (OPTIONS), which Apps Script Web Apps
     // don't implement — doPost still JSON.parses the raw body regardless of header.
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(Object.assign({ action, userId: currentUser ? currentUser.userId : '' }, body || {}))
+    body: JSON.stringify(Object.assign({
+      action,
+      userId: currentUser ? currentUser.userId : '',
+      idToken: currentUser ? currentUser.idToken : ''
+    }, body || {}))
   });
   if (!res.ok) throw new Error('伺服器錯誤 (' + res.status + ')');
-  return res.json();
+  const result = await res.json();
+  handleTokenExpiry(result);
+  return result;
 }
 
 // ── Navigation / router ────────────────────────────────────────────────────────
@@ -1017,7 +1045,11 @@ async function renderRoster() {
 async function inviteMember() {
   const home = await ensureHome();
   if (!home.liffBaseUrl) { showToast('尚未設定 LIFF_BASE_URL'); return; }
-  copyText(home.liffBaseUrl);
+  // ?register=1 → opening the link auto-registers the member into the
+  // universal roster (Participants) with no passcode; joining a trip's own
+  // roster still needs its passcode, which the same page then asks for.
+  const url = home.liffBaseUrl + (home.liffBaseUrl.indexOf('?') >= 0 ? '&' : '?') + 'register=1';
+  copyText(url);
 }
 
 // ── Missions (cross-trip catalog) ────────────────────────────────────────────
