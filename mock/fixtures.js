@@ -237,6 +237,12 @@ function handleMockGet(action, params) {
 }
 
 function handleMockPost(action, body) {
+  if (action === 'register') {
+    if (!DB.participants.some(p => p['LINE User ID'] === body.userId)) {
+      DB.participants.push({ 'LINE User ID': body.userId, 'Display Name': body.displayName || body.userId, 'Picture URL': body.pictureUrl || '', 'Custom Nickname': '' });
+    }
+    return { ok: true };
+  }
   if (action === 'joinTrip') {
     const trip = DB.trips.find(t => t.Trip === body.trip);
     if (!trip) return { error: 'notFound' };
@@ -349,7 +355,8 @@ function installMockShims() {
   window.liff = {
     init: () => Promise.resolve(),
     isLoggedIn: () => true,
-    getProfile: () => Promise.resolve({ userId: 'U_ORGANISER_MOCK', displayName: 'Li (mock)' })
+    getProfile: () => Promise.resolve({ userId: 'U_ORGANISER_MOCK', displayName: 'Li (mock)' }),
+    getIDToken: () => 'mock-id-token' // fetch is intercepted, so never verified
   };
 
   const realFetch = window.fetch.bind(window);
