@@ -277,7 +277,8 @@
 const CONFIG = {
   liffId: '2010468064-uKRXbFfR', // participant LIFF app's own ID (per "LIFF ID.md"; 4RvCpshe is the ORGANISER app)
   gasUrl: 'https://script.google.com/macros/s/AKfycbx4yqj479yhsIAOUBkIWFKNvlKFnTCVZQ18uyiaxXtoGXJURpZ0bw26zgBsiqYu2rjQ/exec'
-  // No secret here — GAS validates your LINE userId instead (set by liff.getProfile)
+  // No secret here — GAS verifies the LINE ID token (liff.getIDToken) server-side
+  // against LINE's verify endpoint; the userId param is just a legacy fallback.
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -344,18 +345,28 @@ async function init() {
 
     const profile = await withTimeout(liff.getProfile(), 10000, 'liff.getProfile()');
     currentUser = { userId: profile.userId, displayName: profile.displayName, pictureUrl: profile.pictureUrl || '' };
+    // ID token for server-side identity verification (security fix C1); null
+    // until the LIFF app has the openid scope, which the server tolerates
+    // while LINE_LOGIN_CHANNEL_ID is unset.
+    currentUser.idToken = (typeof liff.getIDToken === 'function' ? liff.getIDToken() : null) || '';
     document.getElementById('drawer-name').textContent = profile.displayName;
 
     const params = new URLSearchParams(window.location.search);
     missionParam = params.get('mission');
-    const qView  = params.get('view');
-    const qTrip  = params.get('trip');
-    const qTab   = params.get('tab');
+    const qView     = params.get('view');
+    const qTrip     = params.get('trip');
+    const qTab      = params.get('tab');
+    const qRegister = params.get('register');
+
+    // Universal-roster invite link (?register=1): silently register into
+    // Participants before anything else — no passcode needed for the roster
+    // itself. Failure is non-fatal: joinTrip self-registers as a backstop.
+    if (qRegister) { try { await apiPost('register'); } catch (e) { /* backstopped by joinTrip */ } }
 
     await withTimeout(refreshMyTrips(), 10000, 'getMyTrips API');
 
     if (!myTrips.length) {
-      startOnboarding();
+      startOnboarding(!!qRegister);
     } else if (missionParam) {
       navigateTo('missions');
       setTimeout(() => scrollToMission(missionParam), 400);
@@ -404,10 +415,29 @@ async function ensureAchievements(force) {
 
 // ── API helpers ───────────────────────────────────────────────────────────────
 
+// A rejected ID token (expired mid-session — LINE issues them with a ~1h life
+// and liff only mints a fresh one on page load) can't be fixed by retrying;
+// the only recovery is reopening the LIFF. Catch it centrally so the user
+// sees an instruction instead of a suppressed alert().
+function handleTokenExpiry(result) {
+  if (result && result.error === 'Unauthorized' && result.reason === 'token') {
+    document.getElementById('app').innerHTML =
+      '<div class="no-items">登入憑證已過期，請關閉此頁面後重新開啟 🙏</div>';
+    return true;
+  }
+  return false;
+}
+
 async function apiGet(action, params) {
-  const qs = new URLSearchParams(Object.assign({ action, userId: currentUser ? currentUser.userId : '' }, params || {}));
+  const qs = new URLSearchParams(Object.assign({
+    action,
+    userId: currentUser ? currentUser.userId : '',
+    idToken: currentUser ? currentUser.idToken : ''
+  }, params || {}));
   const res = await fetch(CONFIG.gasUrl + '?' + qs.toString());
-  return res.json();
+  const result = await res.json();
+  handleTokenExpiry(result);
+  return result;
 }
 
 async function apiPost(action, body) {
@@ -423,11 +453,14 @@ async function apiPost(action, body) {
     body: JSON.stringify(Object.assign({
       action,
       userId: currentUser ? currentUser.userId : '',
+      idToken: currentUser ? currentUser.idToken : '',
       displayName: currentUser ? currentUser.displayName : '',
       pictureUrl: currentUser ? currentUser.pictureUrl : ''
     }, body || {}))
   });
-  return res.json();
+  const result = await res.json();
+  handleTokenExpiry(result);
+  return result;
 }
 
 // ── Navigation / router ────────────────────────────────────────────────────────
@@ -506,9 +539,16 @@ async function render() {
 
 // ── Onboarding (Landing page) ──────────────────────────────────────────────────
 
-function startOnboarding() {
-  ob = { stage: 1, trip: null, tripInput: '', clauses: [], nicknameDraft: '', error: '' };
+// fromRegister: arrived via the universal-roster invite link (?register=1) —
+// they're already in Participants, so the passcode step is optional for them
+// and gets welcome copy + a skip button instead of the hard gate.
+function startOnboarding(fromRegister) {
+  ob = { stage: 1, trip: null, tripInput: '', clauses: [], nicknameDraft: '', error: '', fromRegister: !!fromRegister };
   navigateTo('onboarding');
+}
+
+function obSkipToHome() {
+  navigateTo('home');
 }
 
 function renderOnboarding() {
@@ -518,11 +558,17 @@ function renderOnboarding() {
 
   if (ob.stage === 1) {
     wrap.innerHTML =
-      '<div class="ob-title">加入行程 🌊</div>' +
-      '<div class="ob-text">請輸入行程通關密語（由主辦人提供）</div>' +
+      (ob.fromRegister
+        ? '<div class="ob-title">✓ 歡迎加入 TripMate！</div>' +
+          '<div class="ob-text">您已成功登記。若主辦人有給您行程通關密語，輸入後即可加入行程；沒有也沒關係，之後隨時可以加入。</div>'
+        : '<div class="ob-title">加入行程 🌊</div>' +
+          '<div class="ob-text">請輸入行程通關密語（由主辦人提供）</div>') +
       '<input class="ob-input" id="ob-passcode" placeholder="例如 Trip2026" value="' + esc(ob.tripInput) + '">' +
       (ob.error ? '<div class="ob-nudge">這個行程尚不存在，請聯絡活動主持人預約行程！</div>' : '') +
-      '<button class="btn btn-coral btn-block" onclick="obSubmitPasscode()">加入</button>';
+      '<button class="btn btn-coral btn-block" onclick="obSubmitPasscode()">加入</button>' +
+      (ob.fromRegister
+        ? '<button class="btn btn-ghost btn-block" style="margin-top:10px" onclick="obSkipToHome()">我還沒有通關密語，稍後再加入</button>'
+        : '');
     app.innerHTML = '';
     app.appendChild(wrap);
     return;
@@ -644,7 +690,12 @@ let homeSelectedTrip = null;
 
 async function renderHome() {
   const app = document.getElementById('app');
-  if (!myTrips.length) { app.innerHTML = '<div class="no-items">尚未加入任何行程</div>'; return; }
+  if (!myTrips.length) {
+    app.innerHTML =
+      '<div class="no-items">尚未加入任何行程</div>' +
+      '<button class="btn btn-coral btn-block" style="margin-top:14px" onclick="startOnboarding()">輸入通關密語加入行程</button>';
+    return;
+  }
 
   if (!homeSelectedTrip || !myTrips.some(t => t['Trip'] === homeSelectedTrip)) {
     const withDates = myTrips.filter(t => t['Start Date']).sort((a, b) => String(a['Start Date']).localeCompare(String(b['Start Date'])));
