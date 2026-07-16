@@ -321,6 +321,8 @@ let achievementsTripFilter = [];
 let achievementsSearch     = '';
 let achievementFormOpen    = false;
 let awardingAchievementId  = null;  // achievement ID currently showing the member picker
+let editingAchievementId   = null;  // achievement ID currently showing the edit form
+let allMissionsForPickerCache = null; // getOrganizerMissions across every trip, for the mission-linking checklist
 let packingSelectedTrip    = null;
 let packingSearch          = '';
 let packingChecked         = null;  // Set of item IDs currently tagged for packingSelectedTrip (client-side, dirty until "Update")
@@ -470,6 +472,12 @@ async function ensureHome(force) {
   if (homeCache && !force) return homeCache;
   homeCache = await apiGet('getOrganizerHome');
   return homeCache;
+}
+async function ensureAllMissionsForPicker(force) {
+  if (allMissionsForPickerCache && !force) return allMissionsForPickerCache;
+  const res = await apiGet('getOrganizerMissions', {});
+  allMissionsForPickerCache = res.missions || [];
+  return allMissionsForPickerCache;
 }
 
 // ── Home ──────────────────────────────────────────────────────────────────────
@@ -630,10 +638,36 @@ async function renderTripDetail() {
     const roster = (await ensureRoster()).filter(m => m.trips && m.trips.indexOf(currentTrip) >= 0);
     contentEl.appendChild(await buildRosterList(roster));
   } else if (currentTripTab === 'packing') {
-    const items = (await ensurePacking()).filter(it => String(it['Trip Tags'] || '').split(',').map(s=>s.trim()).indexOf(currentTrip) >= 0);
-    contentEl.innerHTML = items.length ? '' : '<div class="no-items">這趟行程尚未標記任何打包清單項目</div>';
-    if (items.length) renderPackingCategoryList(contentEl, items, null, false);
+    await renderTripPackingTab(contentEl, currentTrip);
   }
+}
+
+// Defaults to showing every packing item (no filter) — items tagged for this
+// trip are checked/highlighted via the shared checkedSet param, rather than
+// hard-filtering the list down to only tagged items, which used to show
+// nothing at all until the organiser had explicitly tagged something.
+let tripPackingFilter = 'all'; // 'all' (default) | 'tagged'
+
+async function renderTripPackingTab(contentEl, trip) {
+  const allItems = await ensurePacking();
+  const taggedSet = new Set(
+    allItems.filter(it => String(it['Trip Tags'] || '').split(',').map(s => s.trim()).indexOf(trip) >= 0).map(it => it['ID'])
+  );
+
+  contentEl.innerHTML = '<div class="chips" id="trip-pack-chips"></div><div id="trip-pack-list"></div>';
+  const chipsEl = contentEl.querySelector('#trip-pack-chips');
+  [['all', '全部物品'], ['tagged', '已標記']].forEach(([k, label]) => {
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (tripPackingFilter === k ? ' active' : '');
+    chip.textContent = label;
+    chip.onclick = () => { tripPackingFilter = k; render(); };
+    chipsEl.appendChild(chip);
+  });
+
+  const listEl = contentEl.querySelector('#trip-pack-list');
+  const visible = tripPackingFilter === 'tagged' ? allItems.filter(it => taggedSet.has(it['ID'])) : allItems;
+  if (!visible.length) { listEl.innerHTML = '<div class="no-items">尚無打包清單項目</div>'; return; }
+  renderPackingCategoryList(listEl, visible, taggedSet, false);
 }
 
 // ── Trip > Missions tab (the trip-day control panel: Send Now / 選這家 / NFC) ──
@@ -1035,24 +1069,31 @@ async function buildAchievementCards(achievements) {
   if (!achievements.length) { wrap.innerHTML = '<div class="no-items">尚無成就</div>'; return wrap; }
   const roster = await ensureRoster();
 
-  achievements.forEach(a => {
+  for (const a of achievements) {
     const card = document.createElement('div');
     card.className = 'achv-card' + (a['Status'] === 'Unpublished' ? ' unpublished' : '');
     const tripTags = String(a['Trip Tags'] || '').split(',').map(s => s.trim()).filter(Boolean);
     const statusLabel = { Published: '已發布', Unpublished: '未發布', Expired: '已過期' }[a['Status']] || a['Status'];
+    const linkedRows = a.linkedMissionRows || [];
+    const doneCount = linkedRows.filter(m => m['Completed At']).length;
 
     card.innerHTML =
-      '<div class="achv-top">' +
+      '<div class="achv-top" style="cursor:pointer">' +
         '<div class="achv-emoji">' + esc(a['Emoji'] || '🏅') + '</div>' +
         '<div style="flex:1;min-width:0">' +
           '<div class="achv-title">' + highlightMatch(a['Title'] || '', achievementsSearch) + '<span class="pill pill-status">' + esc(statusLabel) + '</span></div>' +
           '<div class="achv-desc">' + highlightMatch(a['Description'] || '', achievementsSearch) + '</div>' +
+          (linkedRows.length ? '<div class="achv-desc" style="margin-top:2px">🎯 已連結 ' + linkedRows.length + ' 個任務・已完成 ' + doneCount + ' 個</div>' : '') +
         '</div>' +
       '</div>' +
       '<div class="tag-row" style="margin-top:10px">' +
         tripTags.map(t => '<span class="tag">' + esc(t) + '</span>').join('') +
         (a.members || []).map(m => '<span class="tag achv-tag">' + esc(m.displayName) + '</span>').join('') +
       '</div>';
+    card.querySelector('.achv-top').onclick = () => {
+      editingAchievementId = editingAchievementId === a['ID'] ? null : a['ID'];
+      render();
+    };
 
     const actions = document.createElement('div');
     actions.className = 'card-actions';
@@ -1077,8 +1118,72 @@ async function buildAchievementCards(achievements) {
       card.appendChild(picker);
     }
     wrap.appendChild(card);
-  });
+
+    if (editingAchievementId === a['ID']) {
+      wrap.appendChild(await buildAchievementEditForm(a));
+    }
+  }
   return wrap;
+}
+
+function parseLinkedMissions(raw) {
+  return String(raw || '').split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+}
+
+async function buildAchievementEditForm(a) {
+  const missions = await ensureAllMissionsForPicker();
+  const linkedSet = new Set(parseLinkedMissions(a['Linked Missions']));
+
+  const card = document.createElement('div');
+  card.className = 'form-card';
+  card.style.marginTop = '-6px';
+  card.innerHTML =
+    '<div class="form-label">名稱</div><input class="form-input" id="ef-title" value="' + esc(a['Title'] || '') + '">' +
+    '<div class="form-label">表情符號</div><input class="form-input" id="ef-emoji" value="' + esc(a['Emoji'] || '🏅') + '">' +
+    '<div class="form-label">說明</div><textarea class="form-input" id="ef-desc">' + esc(a['Description'] || '') + '</textarea>' +
+    '<div class="form-label">適用行程（逗號分隔，留空 = 不限）</div><input class="form-input" id="ef-trips" value="' + esc(a['Trip Tags'] || '') + '">' +
+    '<div class="form-label">連結任務（全部完成即自動獲得成就，可複選）</div>' +
+    '<div id="ef-missions"></div>' +
+    '<button class="btn btn-coral btn-block" style="margin-top:12px" onclick="submitUpdateAchievement(\'' + a['ID'] + '\', this)">儲存變更</button>';
+
+  const missionsEl = card.querySelector('#ef-missions');
+  if (!missions.length) {
+    missionsEl.innerHTML = '<div class="no-items" style="padding:10px 0">尚無任務可連結</div>';
+  } else {
+    missions.forEach(m => {
+      const row = document.createElement('label');
+      row.className = 'pack-item';
+      row.innerHTML =
+        '<input type="checkbox" data-row-index="' + m['_rowIndex'] + '"' + (linkedSet.has(m['_rowIndex']) ? ' checked' : '') + '>' +
+        esc(m['Item'] || '') +
+        ' <span style="color:var(--muted);font-size:11px">(' + esc(m['Trip'] || '') + (m['Completed At'] ? ' · ✓ 已完成' : '') + ')</span>';
+      missionsEl.appendChild(row);
+    });
+  }
+  return card;
+}
+
+async function submitUpdateAchievement(id, btn) {
+  const card = btn.closest('.form-card');
+  const title = card.querySelector('#ef-title').value.trim();
+  if (!title) return;
+  const linkedMissions = Array.from(card.querySelectorAll('#ef-missions input:checked')).map(cb => Number(cb.dataset.rowIndex));
+  btn.disabled = true; btn.textContent = '儲存中…';
+  try {
+    const result = await apiPost('updateAchievement', {
+      id, title,
+      emoji: card.querySelector('#ef-emoji').value.trim() || '🏅',
+      description: card.querySelector('#ef-desc').value.trim(),
+      tripTags: card.querySelector('#ef-trips').value.trim(),
+      linkedMissions
+    });
+    if (result.ok) {
+      editingAchievementId = null;
+      showToast('✓ 已更新成就');
+      await ensureAchievements(true);
+      render();
+    } else { showToast('錯誤: ' + (result.error || '請稍後再試')); btn.disabled = false; btn.textContent = '儲存變更'; }
+  } catch (err) { showToast('網路錯誤: ' + err.message); btn.disabled = false; btn.textContent = '儲存變更'; }
 }
 
 async function renderAchievements() {
