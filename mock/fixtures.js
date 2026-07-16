@@ -30,11 +30,11 @@ const DB = {
     { 'LINE User ID': 'U_FRIEND',         'Display Name': '阿凱',       'Picture URL': '', 'Custom Nickname': '' }
   ],
   tripParticipants: [
-    { Trip: 'Summer26',   'LINE User ID': 'U_ORGANISER_MOCK' },
-    { Trip: 'Summer26',   'LINE User ID': 'U_PARTNER' },
-    { Trip: 'Winter2025', 'LINE User ID': 'U_ORGANISER_MOCK' },
-    { Trip: 'Winter2025', 'LINE User ID': 'U_PARTNER' },
-    { Trip: 'Winter2025', 'LINE User ID': 'U_FRIEND' }
+    { Trip: 'Summer26',   'LINE User ID': 'U_ORGANISER_MOCK', 'Joined At': '2026/07/01 09:00', 'Agreement Signed At': '2026/07/01 09:05' },
+    { Trip: 'Summer26',   'LINE User ID': 'U_PARTNER',        'Joined At': '2026/07/01 10:00', 'Agreement Signed At': '2026/07/01 10:05' },
+    { Trip: 'Winter2025', 'LINE User ID': 'U_ORGANISER_MOCK', 'Joined At': '2025/11/01 09:00', 'Agreement Signed At': '2025/11/01 09:05' },
+    { Trip: 'Winter2025', 'LINE User ID': 'U_PARTNER',        'Joined At': '2025/11/01 10:00', 'Agreement Signed At': '2025/11/01 10:05' },
+    { Trip: 'Winter2025', 'LINE User ID': 'U_FRIEND',         'Joined At': '2025/11/02 09:00', 'Agreement Signed At': '2025/11/02 09:05' }
   ],
   // _rowIndex is globally unique across trips, matching the real shared Itinerary sheet.
   itinerary: [
@@ -47,13 +47,17 @@ const DB = {
     { _rowIndex: 8, Trip: 'Winter2025', Item: '明洞逛街', Category: 'Shopping', Status: 'Booked', 'Start Time': '2025/12/21 14:00', 'End Time': '2025/12/21 17:00', Note: '', 'Is Mission': false },
     { _rowIndex: 9, Trip: 'Winter2025', Item: '點一杯韓國限定星巴克', Category: 'Mission', Status: 'Unstarted', 'Start Time': '2025/12/21 15:00', 'End Time': '', 'Mission Start Time': '2025/12/21 15:00', Note: '集滿印章送杯套', Reward: '貼紙一張', 'LIFF URL': 'https://liff.line.me/2010468064-uKRXbFfR?mission=9', 'Is Mission': true, 'Triggered At': '2025/12/21 15:00', 'Completed At': '2025/12/21 15:40', 'Completed By': 'U_PARTNER' }
   ],
+  // 'Linked Missions' holds comma-separated itinerary _rowIndex values — same
+  // identity Send Now / NFC already key missions by. Whoever is 'Completed By'
+  // on every linked mission auto-earns the achievement (see mockCheckAchievementAutoAward).
   achievements: [
-    { ID: 'ach-1', Title: '寄居蟹獵人', Emoji: '🦀', Description: '找到並拍下一隻寄居蟹',   'Trip Tags': 'Summer26',   Status: 'Published',   'Created At': '2026-07-01', 'Updated At': '2026-07-10' },
-    { ID: 'ach-2', Title: '環島騎士',   Emoji: '🚲', Description: '完成環島腳踏車任務',       'Trip Tags': 'Summer26',   Status: 'Unpublished', 'Created At': '2026-07-01', 'Updated At': '2026-07-05' },
-    { ID: 'ach-3', Title: '咖啡收藏家', Emoji: '☕', Description: '在首爾點過限定星巴克',     'Trip Tags': 'Winter2025', Status: 'Expired',     'Created At': '2025-11-01', 'Updated At': '2025-12-22' }
+    { ID: 'ach-1', Title: '寄居蟹獵人', Emoji: '🦀', Description: '找到並拍下一隻寄居蟹',   'Trip Tags': 'Summer26',   Status: 'Published',   'Created At': '2026-07-01', 'Updated At': '2026-07-10', 'Linked Missions': '6' },
+    { ID: 'ach-2', Title: '環島騎士',   Emoji: '🚲', Description: '完成環島腳踏車任務',       'Trip Tags': 'Summer26',   Status: 'Unpublished', 'Created At': '2026-07-01', 'Updated At': '2026-07-05', 'Linked Missions': '7' },
+    { ID: 'ach-3', Title: '咖啡收藏家', Emoji: '☕', Description: '在首爾點過限定星巴克',     'Trip Tags': 'Winter2025', Status: 'Expired',     'Created At': '2025-11-01', 'Updated At': '2025-12-22', 'Linked Missions': '9' }
   ],
   achievementAwards: [
-    { 'Achievement ID': 'ach-3', 'LINE User ID': 'U_PARTNER', 'Awarded At': '2025/12/21 16:00' }
+    { 'Achievement ID': 'ach-3', 'LINE User ID': 'U_PARTNER',        'Awarded At': '2025/12/21 16:00' },
+    { 'Achievement ID': 'ach-3', 'LINE User ID': 'U_ORGANISER_MOCK', 'Awarded At': '2025/12/22 09:00' }
   ],
   packingItems: [
     { ID: 'p-1', Category: '文件',     Item: '護照', Shared: false, 'Can Be Checked In': false, Note: '',               'Trip Tags': 'Summer26,Winter2025' },
@@ -75,6 +79,33 @@ function mockMissionStatus(it) {
   var start = String(it['Start Time'] || '');
   if (!it['Is Multi-day'] && start && start.slice(0, 10) < mockToday()) return 'expired';
   return 'new';
+}
+
+function mockParseLinkedMissions(raw) {
+  return String(raw || '').split(',').map(function(s) { return parseInt(s.trim(), 10); }).filter(function(n) { return !isNaN(n); });
+}
+
+// Mirrors gas/Code.gs's _checkAchievementAutoAward: whoever ends up
+// 'Completed By' on every one of an achievement's linked missions earns it.
+function mockCheckAchievementAutoAward(completedRowIndex, userId) {
+  const achievements = DB.achievements.filter(a => mockParseLinkedMissions(a['Linked Missions']).indexOf(completedRowIndex) >= 0);
+  if (!achievements.length) return [];
+  const itinByRow = {};
+  DB.itinerary.forEach(it => itinByRow[it._rowIndex] = it);
+  const newlyAwarded = [];
+  achievements.forEach(a => {
+    const linked = mockParseLinkedMissions(a['Linked Missions']);
+    const allDone = linked.length > 0 && linked.every(rIdx => {
+      const it = itinByRow[rIdx];
+      return it && it['Completed At'] && String(it['Completed By'] || '') === userId;
+    });
+    if (!allDone) return;
+    const already = DB.achievementAwards.some(aw => aw['Achievement ID'] === a.ID && aw['LINE User ID'] === userId);
+    if (already) return;
+    DB.achievementAwards.push({ 'Achievement ID': a.ID, 'LINE User ID': userId, 'Awarded At': mockNow() });
+    newlyAwarded.push({ id: a.ID, title: a.Title, emoji: a.Emoji });
+  });
+  return newlyAwarded;
 }
 
 function mockRoster() {
@@ -138,7 +169,12 @@ function handleMockGet(action, params) {
     DB.participants.forEach(p => nameById[p['LINE User ID']] = p['Custom Nickname'] || p['Display Name']);
     const membersByAch = {};
     DB.achievementAwards.forEach(a => (membersByAch[a['Achievement ID']] = membersByAch[a['Achievement ID']] || []).push({ userId: a['LINE User ID'], displayName: nameById[a['LINE User ID']] || a['LINE User ID'], awardedAt: a['Awarded At'] }));
-    const list = DB.achievements.map(a => Object.assign({}, a, { members: membersByAch[a.ID] || [] }));
+    const itinByRow = {};
+    DB.itinerary.forEach(it => itinByRow[it._rowIndex] = it);
+    const list = DB.achievements.map(a => Object.assign({}, a, {
+      members: membersByAch[a.ID] || [],
+      linkedMissionRows: mockParseLinkedMissions(a['Linked Missions']).map(r => itinByRow[r]).filter(Boolean)
+    }));
     list.sort((a, b) => String(b['Updated At'] || '').localeCompare(String(a['Updated At'] || '')));
     return { achievements: list };
   }
@@ -150,10 +186,91 @@ function handleMockGet(action, params) {
     else if (raw) { const f = raw.split(',').map(s => s.trim()).filter(Boolean); tasks = tasks.filter(t => f.indexOf(t.Trip) >= 0); }
     return { tasks: tasks.slice().sort((a, b) => String(b['Created At'] || '').localeCompare(String(a['Created At'] || ''))) };
   }
+  if (action === 'getMyTrips') {
+    const joined = DB.tripParticipants.filter(l => l['LINE User ID'] === params.userId);
+    const trips = DB.trips.filter(t => joined.some(j => j.Trip === t.Trip)).map(t => {
+      const j = joined.find(x => x.Trip === t.Trip);
+      return Object.assign({}, t, { 'Joined At': j['Joined At'] || '', 'Agreement Signed At': j['Agreement Signed At'] || '' });
+    });
+    return { trips };
+  }
+  if (action === 'getMyMissions') {
+    const joinedTrips = DB.tripParticipants.filter(l => l['LINE User ID'] === params.userId).map(l => l.Trip);
+    const missions = DB.itinerary.filter(it => it['Is Mission'] && joinedTrips.indexOf(it.Trip) >= 0)
+      .map(it => Object.assign({}, it, { _status: mockMissionStatus(it) }));
+    return { missions };
+  }
+  if (action === 'getTripAgreement') {
+    const trip = DB.trips.find(t => t.Trip === params.trip);
+    if (!trip) return { error: 'notFound' };
+    return {
+      trip: params.trip, tripName: params.trip,
+      clauses: ['準時集合，不無故遲到', '尊重其他團員的意願與步調', '共同分擔行程中的雜務與決定', '遇到突發狀況會冷靜溝通，一起解決']
+    };
+  }
+  if (action === 'getAchievements') {
+    const joinedTrips = DB.tripParticipants.filter(l => l['LINE User ID'] === params.userId).map(l => l.Trip);
+    const awardedAtById = {};
+    DB.achievementAwards.filter(a => a['LINE User ID'] === params.userId).forEach(a => awardedAtById[a['Achievement ID']] = a['Awarded At']);
+    const itinByRow = {};
+    DB.itinerary.forEach(it => itinByRow[it._rowIndex] = it);
+
+    const visible = DB.achievements.filter(a => {
+      if (awardedAtById[a.ID]) return true;
+      if (a.Status !== 'Published') return false;
+      const tags = String(a['Trip Tags'] || '').split(',').map(s => s.trim()).filter(Boolean);
+      return !tags.length || tags.some(t => joinedTrips.indexOf(t) >= 0);
+    });
+    const result = visible.map(a => {
+      const linked = mockParseLinkedMissions(a['Linked Missions']);
+      const doneByMe = linked.filter(r => { const it = itinByRow[r]; return it && it['Completed At'] && String(it['Completed By'] || '') === params.userId; }).length;
+      return {
+        id: a.ID, title: a.Title, emoji: a.Emoji || '🏅', description: a.Description || '',
+        earned: !!awardedAtById[a.ID], awardedAt: awardedAtById[a.ID] || '',
+        missionTotal: linked.length, missionDone: doneByMe
+      };
+    });
+    result.sort((a, b) => { if (a.earned !== b.earned) return a.earned ? -1 : 1; return String(b.awardedAt || '').localeCompare(String(a.awardedAt || '')); });
+    return { achievements: result };
+  }
   return { error: 'Unknown mock action: ' + action };
 }
 
 function handleMockPost(action, body) {
+  if (action === 'joinTrip') {
+    const trip = DB.trips.find(t => t.Trip === body.trip);
+    if (!trip) return { error: 'notFound' };
+    if (!DB.participants.some(p => p['LINE User ID'] === body.userId)) {
+      DB.participants.push({ 'LINE User ID': body.userId, 'Display Name': body.displayName || body.userId, 'Picture URL': body.pictureUrl || '', 'Custom Nickname': '' });
+    }
+    const existing = DB.tripParticipants.find(l => l.Trip === body.trip && l['LINE User ID'] === body.userId);
+    if (existing) return { ok: true, alreadyJoined: true, agreementSignedAt: existing['Agreement Signed At'] || '' };
+    DB.tripParticipants.push({ Trip: body.trip, 'LINE User ID': body.userId, 'Joined At': mockNow(), 'Agreement Signed At': '' });
+    return { ok: true, alreadyJoined: false, agreementSignedAt: '' };
+  }
+  if (action === 'signAgreement') {
+    const checked = Number(body.checkedCount) || 0, total = Number(body.totalCount) || 0;
+    if (!total || checked / total < 0.7) return { error: 'notEnoughChecked' };
+    const link = DB.tripParticipants.find(l => l.Trip === body.trip && l['LINE User ID'] === body.userId);
+    if (!link) return { error: 'notJoined' };
+    link['Agreement Signed At'] = mockNow();
+    return { ok: true, signedAt: link['Agreement Signed At'] };
+  }
+  if (action === 'updateNickname') {
+    const p = DB.participants.find(x => x['LINE User ID'] === body.userId);
+    if (!p) return { error: 'notFound' };
+    p['Custom Nickname'] = body.nickname;
+    return { ok: true, nickname: body.nickname };
+  }
+  if (action === 'completeMission') {
+    const item = DB.itinerary.find(it => it._rowIndex === Number(body.rowIndex));
+    if (!item) return { error: 'rowIndex and userId are required' };
+    const nowStr = mockNow();
+    item['Completed At'] = nowStr;
+    item['Completed By'] = body.userId;
+    const awardedAchievements = mockCheckAchievementAutoAward(item._rowIndex, body.userId);
+    return { ok: true, completedAt: nowStr, awardedAchievements };
+  }
   if (action === 'sendNow') {
     const item = DB.itinerary.find(it => it._rowIndex === Number(body.rowIndex));
     if (!item) return { error: 'Row out of range' };
@@ -184,7 +301,8 @@ function handleMockPost(action, body) {
   if (action === 'createAchievement') {
     const id = 'ach-' + (DB.achievements.length + 1) + '-' + Math.floor(Math.random() * 1000);
     const now = mockNow();
-    DB.achievements.push({ ID: id, Title: body.title, Emoji: body.emoji || '🏅', Description: body.description || '', 'Trip Tags': body.tripTags || '', Status: body.status || 'Unpublished', 'Created At': now, 'Updated At': now });
+    const linkedMissions = Array.isArray(body.linkedMissions) ? body.linkedMissions.join(',') : (body.linkedMissions || '');
+    DB.achievements.push({ ID: id, Title: body.title, Emoji: body.emoji || '🏅', Description: body.description || '', 'Trip Tags': body.tripTags || '', Status: body.status || 'Unpublished', 'Created At': now, 'Updated At': now, 'Linked Missions': linkedMissions });
     return { ok: true, id };
   }
   if (action === 'updateAchievement') {
@@ -195,6 +313,9 @@ function handleMockPost(action, body) {
       const col = { title: 'Title', emoji: 'Emoji', description: 'Description', tripTags: 'Trip Tags', status: 'Status' }[key];
       a[col] = body[key];
     });
+    if (body.linkedMissions !== undefined) {
+      a['Linked Missions'] = Array.isArray(body.linkedMissions) ? body.linkedMissions.join(',') : body.linkedMissions;
+    }
     a['Updated At'] = mockNow();
     return { ok: true };
   }
