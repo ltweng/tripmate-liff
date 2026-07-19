@@ -101,7 +101,9 @@
     .pill-tabs {
       display: flex; gap: 4px; background: var(--card); border: 1px solid var(--border);
       border-radius: 999px; padding: 4px; margin-bottom: 12px; overflow-x: auto;
+      scrollbar-width: none; /* Firefox — hide the grey scrollbar (E2) */
     }
+    .pill-tabs::-webkit-scrollbar { display: none; } /* WebKit — hide it too (E2) */
     .pill-tab {
       flex: 1; min-width: 64px; padding: 8px 6px; font-size: 12.5px; font-weight: 700;
       text-align: center; border-radius: 999px; color: var(--muted); cursor: pointer; white-space: nowrap;
@@ -249,11 +251,39 @@
       transition: opacity 0.2s; z-index: 50; max-width: 90%; text-align: center;
     }
     .toast.show { opacity: 1; }
+
+    /* ── Item detail modal ────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(11,42,66,0.5); z-index: 60;
+      display: none; align-items: flex-end; justify-content: center;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: var(--card); width: 100%; max-width: 480px; max-height: 88vh; overflow-y: auto;
+      border-radius: 20px 20px 0 0; padding: 0 0 20px; animation: slideUp 0.2s ease-out;
+    }
+    @keyframes slideUp { from { transform: translateY(30px); opacity: 0.6; } to { transform: translateY(0); opacity: 1; } }
+    .modal-cover { width: 100%; height: 160px; object-fit: cover; display: block; background: var(--bg); border-radius: 20px 20px 0 0; }
+    .modal-head { display: flex; align-items: flex-start; gap: 10px; padding: 16px 18px 4px; }
+    .modal-title { font-size: 18px; font-weight: 700; font-family: 'Fraunces', serif; flex: 1; word-break: break-word; }
+    .modal-close {
+      flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%; border: none; background: var(--bg);
+      font-size: 16px; color: var(--muted); cursor: pointer; line-height: 1;
+    }
+    .modal-body { padding: 4px 18px 0; }
+    .detail-row { display: flex; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--divider); font-size: 13.5px; }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-label { flex-shrink: 0; width: 76px; color: var(--muted); font-weight: 700; }
+    .detail-val { flex: 1; word-break: break-word; white-space: pre-wrap; }
+    .detail-val a { color: var(--teal); font-weight: 700; text-decoration: none; }
+    .modal-actions { padding: 14px 18px 0; display: flex; gap: 8px; flex-wrap: wrap; }
   </style>
 </head>
 <body>
 
 <div id="toast" class="toast"></div>
+
+<div id="item-modal" class="modal-overlay" onclick="if(event.target===this)closeItemModal()"></div>
 
 <div id="header">
   <div id="brand">
@@ -304,9 +334,12 @@ const VIEW_TITLES = {
   achievements: '成就', packing: '打包清單', profile: '個人檔案', onboarding: ''
 };
 
+// Expense is intentionally omitted from the participant view (E1) — the feature
+// isn't built yet and lives only on the organiser panel. Removing it also lets
+// the remaining five tabs fit at 375px without the tab bar overflowing (E2).
 const TRIP_TABS = [
   ['overview', '總覽'], ['itinerary', '行程'], ['locations', '地點'],
-  ['mission', '任務'], ['packing', '打包'], ['expense', '花費']
+  ['mission', '任務'], ['packing', '打包']
 ];
 
 const PACKING_MASTER = [
@@ -334,6 +367,8 @@ let rosterCache = null;       // cache, from getRoster
 let tripItemsCache = {};      // trip -> items (getTimeline scope=all)
 let missionsCache = null;     // cache, from getMyMissions
 let achievementsCache = null; // cache, from getAchievements
+let packingCache = {};        // trip -> items (getMyPacking); cleared on toggle
+const ITEM_REGISTRY = {};     // rowIndex -> item, populated by buildCard for the detail modal
 
 // Onboarding state
 let ob = { stage: 1, trip: null, tripInput: '', clauses: [], nicknameDraft: '', error: '' };
@@ -423,6 +458,13 @@ async function ensureAchievements(force) {
   const res = await apiGet('getAchievements');
   achievementsCache = res.achievements || [];
   return achievementsCache;
+}
+
+async function ensurePacking(trip, force) {
+  if (packingCache[trip] && !force) return packingCache[trip];
+  const res = await apiGet('getMyPacking', { trip });
+  packingCache[trip] = res.items || [];
+  return packingCache[trip];
 }
 
 // ── API helpers ───────────────────────────────────────────────────────────────
@@ -552,7 +594,7 @@ async function render() {
     if (currentView === 'roster')       return await renderRoster();
     if (currentView === 'missions')     return await renderMissions();
     if (currentView === 'achievements') return await renderAchievements();
-    if (currentView === 'packing')      return renderPackingGlobal();
+    if (currentView === 'packing')      return await renderPackingGlobal();
     if (currentView === 'profile')      return await renderProfile();
   } catch (err) {
     app.innerHTML = '<div class="no-items">載入失敗<p>' + esc(err.message) + '</p></div>';
@@ -571,6 +613,14 @@ function startOnboarding(fromRegister) {
 
 function obSkipToHome() {
   navigateTo('home');
+}
+
+// "＋ 加入行程 Join Trip" on the Trips page: start the onboarding flow at the
+// passcode-entry step so an existing participant can join an additional trip by
+// entering its code. Same entry point as the empty-Home CTA — just a clearer
+// name at the call site.
+function startJoinTrip() {
+  startOnboarding(false);
 }
 
 function renderOnboarding() {
@@ -747,7 +797,7 @@ async function renderHome() {
     '<select id="home-trip-select" onchange="homeSelectedTrip=this.value; render()">' +
       myTrips.map(t => '<option value="' + esc(t['Trip']) + '"' + (t['Trip'] === homeSelectedTrip ? ' selected' : '') + '>' + esc(t['Location'] || t['Trip']) + '</option>').join('') +
     '</select>' +
-    '<div class="hero-card">' +
+    '<div class="hero-card" style="cursor:pointer" onclick="navigateTo(\'tripDetail\',{trip:\'' + esc(homeSelectedTrip) + '\'})">' +
       '<div class="hero-trip-name">' + esc(trip['Location'] || trip['Trip']) + '</div>' +
       '<div class="hero-meta">' + esc(trip['Start Date'] || '') + (trip['End Date'] ? ' → ' + esc(trip['End Date']) : '') + '</div>' +
       (countdown != null ? '<div class="countdown-badge">' + (
@@ -761,13 +811,14 @@ async function renderHome() {
     '<div class="section-title">✨ 精選行程</div>' +
     '<div id="home-highlights"></div>' +
     '<div class="section-title">🎒 打包清單</div>' +
-    '<div class="stub-card">這趟行程尚未開放打包清單</div>' +
+    '<div id="home-packing"></div>' +
     '<div class="section-title">👥 成員</div>' +
     '<div id="home-members"></div>';
   app.innerHTML = '';
   app.appendChild(app2);
 
   renderItemList(document.getElementById('home-highlights'), upcoming, '目前沒有即將到來的行程');
+  renderHomePacking(homeSelectedTrip);
   const membersEl = document.getElementById('home-members');
   if (!members.length) { membersEl.innerHTML = '<div class="no-items" style="padding:20px">尚無成員</div>'; }
   else members.forEach(m => {
@@ -776,6 +827,32 @@ async function renderHome() {
     row.innerHTML = (m.pictureUrl ? '<img class="avatar" src="' + esc(m.pictureUrl) + '">' : '<div class="avatar"></div>') + esc(m.displayName);
     membersEl.appendChild(row);
   });
+}
+
+// Home packing preview: a compact progress line + shortcut into the trip's
+// Packing tab (the real check-off UI). Loaded after the Home skeleton so a slow
+// packing fetch doesn't hold up the rest of the page.
+async function renderHomePacking(trip) {
+  const el = document.getElementById('home-packing');
+  if (!el) return;
+  try {
+    const items = await ensurePacking(trip);
+    if (!items.length) { el.innerHTML = '<div class="stub-card">這趟行程還沒有打包清單項目</div>'; return; }
+    const done = items.filter(it => it.checked).length;
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.cursor = 'pointer';
+    card.onclick = () => navigateTo('tripDetail', { trip, tab: 'packing' });
+    card.innerHTML =
+      '<div class="card-body">' +
+        '<div style="font-weight:700;font-size:14px">已打包 ' + done + ' / ' + items.length + ' 項</div>' +
+        '<div style="font-size:12px;color:var(--muted);margin-top:4px">點此查看並勾選打包清單 →</div>' +
+      '</div>';
+    el.innerHTML = '';
+    el.appendChild(card);
+  } catch (err) {
+    el.innerHTML = '<div class="stub-card">打包清單載入失敗</div>';
+  }
 }
 
 // ── Trips overview + Trip (Individual) ───────────────────────────────────────────
@@ -803,7 +880,7 @@ function renderTrips() {
         '<div class="chip' + (tripsFilter === k ? ' active' : '') + '" onclick="tripsFilter=\'' + k + '\'; render()">' + label + '</div>'
       ).join('') +
     '</div>' +
-    '<button class="btn btn-teal btn-block" style="margin-bottom:14px" onclick="startOnboarding()">+ 加入新行程 New Trip</button>' +
+    '<button class="btn btn-teal btn-block" style="margin-bottom:14px" onclick="startJoinTrip()">＋ 加入行程 Join Trip</button>' +
     '<div id="trip-cards"></div>';
   app.innerHTML = '';
   app.appendChild(wrap);
@@ -893,10 +970,77 @@ async function renderTripDetail() {
     renderTripMissionTab(contentEl, items, today);
 
   } else if (currentTripTab === 'packing') {
-    contentEl.innerHTML = '<div class="stub-card">這趟行程尚未開放打包清單，可先參考「打包清單」總覽的通用清單。</div>';
+    await renderPackingChecklist(contentEl, currentTrip);
+  }
+}
 
-  } else if (currentTripTab === 'expense') {
-    contentEl.innerHTML = '<div class="stub-card">花費追蹤功能尚未開放。</div>';
+// ── Packing checklist (per-user check-off, audit F7) ─────────────────────────────
+// Shared by the trip-detail Packing tab and the global Packing view. Renders the
+// trip's packing items grouped by category with live checkboxes whose state is
+// saved per-user via togglePackingItem.
+async function renderPackingChecklist(container, trip) {
+  const items = await ensurePacking(trip);
+  container.innerHTML = '';
+  if (!items.length) {
+    container.innerHTML = '<div class="no-items" style="padding:16px">這趟行程還沒有打包清單項目</div>';
+    return;
+  }
+
+  const checkedCount = items.filter(it => it.checked).length;
+  const summary = document.createElement('div');
+  summary.className = 'pack-note';
+  summary.id = 'pack-summary';
+  summary.textContent = '已打包 ' + checkedCount + ' / ' + items.length + ' 項';
+  container.appendChild(summary);
+
+  const groups = {};
+  items.forEach(it => { const c = it.Category || '其他'; (groups[c] = groups[c] || []).push(it); });
+  Object.keys(groups).forEach(cat => {
+    const wrap = document.createElement('div');
+    wrap.className = 'pack-category';
+    wrap.innerHTML = '<div class="pack-category-title">' + esc(cat) + '</div>';
+    groups[cat].forEach(it => {
+      const label = document.createElement('label');
+      label.className = 'pack-item';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = !!it.checked;
+      cb.onchange = () => togglePacking(trip, it, cb);
+      label.appendChild(cb);
+      label.appendChild(document.createTextNode(' ' + (it.Item || '')));
+      if (it.Note) {
+        const note = document.createElement('span');
+        note.style.cssText = 'color:var(--muted);font-size:11px';
+        note.textContent = ' · ' + it.Note;
+        label.appendChild(note);
+      }
+      wrap.appendChild(label);
+    });
+    container.appendChild(wrap);
+  });
+}
+
+async function togglePacking(trip, item, cb) {
+  const desired = cb.checked;
+  cb.disabled = true;
+  try {
+    const result = await apiPost('togglePackingItem', { trip, itemId: item.ID, checked: desired });
+    if (result.ok) {
+      item.checked = desired; // keep the cache in sync so re-renders stay correct
+      const summaryEl = document.getElementById('pack-summary');
+      if (summaryEl) {
+        const items = packingCache[trip] || [];
+        summaryEl.textContent = '已打包 ' + items.filter(it => it.checked).length + ' / ' + items.length + ' 項';
+      }
+    } else {
+      cb.checked = !desired;
+      showToast('錯誤: ' + (result.error || '請稍後再試'));
+    }
+  } catch (err) {
+    cb.checked = !desired;
+    showToast('網路錯誤: ' + err.message);
+  } finally {
+    cb.disabled = false;
   }
 }
 
@@ -996,16 +1140,36 @@ async function renderAchievements() {
 
 // ── Packing list (global) ────────────────────────────────────────────────────
 
-function renderPackingGlobal() {
+let packingSelectedTrip = null;
+
+async function renderPackingGlobal() {
   const app = document.getElementById('app');
-  app.innerHTML = '<div class="pack-note">📌 這是通用打包清單參考，目前尚無法儲存勾選狀態。</div>';
-  PACKING_MASTER.forEach(group => {
-    const cat = document.createElement('div');
-    cat.className = 'pack-category';
-    cat.innerHTML = '<div class="pack-category-title">' + esc(group.cat) + '</div>' +
-      group.items.map(item => '<label class="pack-item"><input type="checkbox" disabled>' + esc(item) + '</label>').join('');
-    app.appendChild(cat);
-  });
+
+  // No joined trips yet → the generic reference list (read-only), so the page
+  // isn't a dead end before anyone has joined a trip.
+  if (!myTrips.length) {
+    app.innerHTML = '<div class="pack-note">📌 這是通用打包清單參考。加入行程後即可勾選並儲存打包進度。</div>';
+    PACKING_MASTER.forEach(group => {
+      const cat = document.createElement('div');
+      cat.className = 'pack-category';
+      cat.innerHTML = '<div class="pack-category-title">' + esc(group.cat) + '</div>' +
+        group.items.map(item => '<label class="pack-item"><input type="checkbox" disabled>' + esc(item) + '</label>').join('');
+      app.appendChild(cat);
+    });
+    return;
+  }
+
+  if (!packingSelectedTrip || !myTrips.some(t => t['Trip'] === packingSelectedTrip)) {
+    packingSelectedTrip = (homeSelectedTrip && myTrips.some(t => t['Trip'] === homeSelectedTrip))
+      ? homeSelectedTrip : myTrips[0]['Trip'];
+  }
+
+  app.innerHTML =
+    '<select id="packing-trip-select" onchange="packingSelectedTrip=this.value; render()">' +
+      myTrips.map(t => '<option value="' + esc(t['Trip']) + '"' + (t['Trip'] === packingSelectedTrip ? ' selected' : '') + '>' + esc(t['Location'] || t['Trip']) + '</option>').join('') +
+    '</select>' +
+    '<div id="packing-list"></div>';
+  await renderPackingChecklist(document.getElementById('packing-list'), packingSelectedTrip);
 }
 
 // ── Profile ───────────────────────────────────────────────────────────────────
@@ -1082,9 +1246,15 @@ function buildCard(item, inAltGroup, showTripTag) {
     : (isMission && item['Triggered At'] ? '<span class="pill pill-active">進行中</span>' : (isMission ? '<span class="pill pill-muted">未觸發</span>' : ''));
   const tripTag = showTripTag && item['Trip'] ? '<span class="pill trip-tag" style="background:' + tripColor(item['Trip']) + '">' + esc(item['Trip']) + '</span>' : '';
 
+  if (rowIndex) ITEM_REGISTRY[rowIndex] = item; // so the detail modal can look it up on click
+
   const card = document.createElement('div');
   card.className = 'card' + (isMission ? ' mission' : '') + (isChosen ? ' chosen' : '') + (inAltGroup && !isMission ? ' alt-item' : '');
-  if (rowIndex) card.dataset.rowIndex = rowIndex;
+  if (rowIndex) {
+    card.dataset.rowIndex = rowIndex;
+    card.style.cursor = 'pointer';
+    card.onclick = () => openItemModal(rowIndex);
+  }
 
   card.innerHTML =
     (cover ? '<img class="card-cover" src="' + esc(cover) + '" loading="lazy" alt="">' : '') +
@@ -1103,12 +1273,14 @@ function buildCard(item, inAltGroup, showTripTag) {
   if (isMission && !isDone && item['Triggered At']) {
     const actions = document.createElement('div');
     actions.className = 'card-actions';
+    actions.onclick = (e) => e.stopPropagation(); // don't also open the detail modal
     actions.innerHTML = '<button class="btn btn-coral" onclick="completeMission(' + rowIndex + ', this)">完成任務</button>';
     card.appendChild(actions);
   }
   if (inAltGroup && !isChosen && !isDone) {
     const actions = document.createElement('div');
     actions.className = 'card-actions';
+    actions.onclick = (e) => e.stopPropagation(); // don't also open the detail modal
     actions.innerHTML = '<button class="btn btn-teal" onclick="chooseRestaurant(' + rowIndex + ', \'' + esc(item['Alt Group ID']) + '\', this)">選這家</button>';
     card.appendChild(actions);
   }
@@ -1127,6 +1299,91 @@ function buildAltGroup(members) {
     wrap.appendChild(buildCard(m, true));
   });
   return wrap;
+}
+
+// ── Item detail modal ─────────────────────────────────────────────────────────
+
+function openItemModal(rowIndex) {
+  const item = ITEM_REGISTRY[rowIndex];
+  if (!item) return;
+  const overlay = document.getElementById('item-modal');
+
+  const isMission = !!item['Is Mission'];
+  const isDone    = !!item['Completed At'];
+  const isChosen  = item['Is Chosen'] === true || item['Is Chosen'] === 'true';
+  const emoji     = EMOJI[item['Category']] || '•';
+  const cover     = (item['Cover'] || '').trim();
+
+  const rows = [];
+  const add = (label, value, isHtml) => {
+    if (!value && value !== 0) return;
+    rows.push('<div class="detail-row"><div class="detail-label">' + esc(label) + '</div><div class="detail-val">' + (isHtml ? value : esc(String(value))) + '</div></div>');
+  };
+
+  const timeStr = fmtTime(item['Start Time'], item['End Time']);
+  add('時間', timeStr);
+  add('狀態', item['Status']);
+  add('地區', [item['Area'], item['Sub Area']].filter(Boolean).join(' · '));
+  add('說明', item['Note']);
+  if (item['Reward']) add('獎勵', '🎁 ' + item['Reward']);
+  add('營業時間', item['Open Hour']);
+  add('公休', item['Closed on']);
+  add('地址', item['Address']);
+  add('電話', item['Phone']);
+  if (item['Price']) add('價格', String(item['Price']) + (item['Currency'] ? ' ' + item['Currency'] : ''));
+
+  const mapUrl = _mapsUrl(item);
+  if (mapUrl) add('地圖', '<a href="' + esc(mapUrl) + '" target="_blank" rel="noopener">在 Google 地圖開啟 →</a>', true);
+  if (item['Website']) add('網站', '<a href="' + esc(item['Website']) + '" target="_blank" rel="noopener">開啟網站 →</a>', true);
+
+  const actions = [];
+  if (isMission && !isDone && item['Triggered At']) {
+    actions.push('<button class="btn btn-coral" onclick="modalCompleteMission(' + rowIndex + ')">完成任務</button>');
+  }
+  if (item['Alt Group ID'] && !isChosen && !isDone && item['Category'] === 'Restaurant') {
+    actions.push('<button class="btn btn-teal" onclick="modalChooseRestaurant(' + rowIndex + ', \'' + esc(item['Alt Group ID']) + '\')">選這家</button>');
+  }
+
+  const statusPill = isDone ? '<span class="pill pill-done">✓ 完成</span>'
+    : (isMission && item['Triggered At'] ? '<span class="pill pill-active">進行中</span>' : (isChosen ? '<span class="pill pill-done">已選</span>' : ''));
+
+  overlay.innerHTML =
+    '<div class="modal" onclick="event.stopPropagation()">' +
+      (cover ? '<img class="modal-cover" src="' + esc(cover) + '" onerror="this.style.display=\'none\'" alt="">' : '') +
+      '<div class="modal-head">' +
+        '<div class="modal-title">' + emoji + ' ' + esc(item['Item'] || '') + ' ' + statusPill + '</div>' +
+        '<button class="modal-close" onclick="closeItemModal()">✕</button>' +
+      '</div>' +
+      '<div class="modal-body">' + (rows.length ? rows.join('') : '<div class="detail-row"><div class="detail-val" style="color:var(--muted)">沒有更多細節</div></div>') + '</div>' +
+      (actions.length ? '<div class="modal-actions">' + actions.join('') + '</div>' : '') +
+    '</div>';
+  overlay.classList.add('show');
+}
+
+function closeItemModal() {
+  const overlay = document.getElementById('item-modal');
+  overlay.classList.remove('show');
+  overlay.innerHTML = '';
+}
+
+// Build a Google Maps link from whatever geo hint the item carries: a GM Page
+// URL if it looks like one, otherwise a place search by address or name.
+function _mapsUrl(item) {
+  const gm = (item['GM Page'] || '').trim();
+  if (/^https?:\/\//i.test(gm)) return gm;
+  const q = (item['Address'] || '').trim() || (item['Item'] || '').trim();
+  if (!q) return '';
+  return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q);
+}
+
+async function modalCompleteMission(rowIndex) {
+  closeItemModal();
+  await completeMission(rowIndex, { disabled: false, textContent: '' });
+}
+
+async function modalChooseRestaurant(rowIndex, altGroupId) {
+  closeItemModal();
+  await chooseRestaurant(rowIndex, altGroupId, { disabled: false, textContent: '' });
 }
 
 // ── Actions (mutating) ────────────────────────────────────────────────────────
