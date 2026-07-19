@@ -330,6 +330,8 @@ let tasksTripFilter        = 'all'; // 'all' | '' (general only) | a trip code
 let tasksStatusFilter      = 'open';
 let itinerariesSelectedTrip = null;
 let tripMissionFilter       = 'all'; // 未觸發/已推送/已完成 filter inside Trip > Missions tab
+let editTripOpen            = false; // Trip Individual page: showing the trip-settings edit form
+let editingMissionRow       = null;  // itinerary rowIndex currently showing the mission edit form
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 
@@ -639,6 +641,51 @@ async function submitCreateTrip(btn) {
   }
 }
 
+// Prefill an edit form from the trip's current settings. The Trip code is the
+// join passcode + the key every other sheet references, so it's shown read-only,
+// not editable (rename would orphan itinerary/roster/achievement rows).
+function buildTripEditForm(trip) {
+  const toDateInput = (v) => String(v || '').slice(0, 10).replace(/\//g, '-');
+  const card = document.createElement('div');
+  card.className = 'form-card';
+  card.innerHTML =
+    '<div class="form-label">行程代號（通關密語，不可更改）</div><input class="form-input" value="' + esc(trip['Trip']) + '" disabled>' +
+    '<div class="form-label">地點</div><input class="form-input" id="te-location" value="' + esc(trip['Location'] || '') + '">' +
+    '<div class="form-label">開始日期</div><input class="form-input" id="te-start" type="date" value="' + esc(toDateInput(trip['Start Date'])) + '">' +
+    '<div class="form-label">結束日期</div><input class="form-input" id="te-end" type="date" value="' + esc(toDateInput(trip['End Date'])) + '">' +
+    '<div class="form-label">公告 / 簡介</div><textarea class="form-input" id="te-announcement">' + esc(trip['Announcement'] || '') + '</textarea>' +
+    '<div class="form-label">旅行公約（每行一條，留空 = 使用預設）</div><textarea class="form-input" id="te-agreement" style="min-height:90px">' + esc(trip['Agreement'] || '') + '</textarea>' +
+    '<button class="btn btn-coral btn-block" style="margin-top:12px" onclick="submitUpdateTrip(\'' + esc(trip['Trip']) + '\', this)">儲存變更</button>';
+  return card;
+}
+
+async function submitUpdateTrip(trip, btn) {
+  const card = btn.closest('.form-card');
+  btn.disabled = true; btn.textContent = '儲存中…';
+  try {
+    const result = await apiPost('updateTrip', {
+      trip,
+      location: card.querySelector('#te-location').value.trim(),
+      startDate: (card.querySelector('#te-start').value || '').replace(/-/g, '/'),
+      endDate: (card.querySelector('#te-end').value || '').replace(/-/g, '/'),
+      announcement: card.querySelector('#te-announcement').value.trim(),
+      agreement: card.querySelector('#te-agreement').value
+    });
+    if (result.ok) {
+      editTripOpen = false;
+      showToast('✓ 已更新行程設定');
+      await ensureTrips(true);
+      render();
+    } else {
+      showToast('錯誤: ' + (result.error || '請稍後再試'));
+      btn.disabled = false; btn.textContent = '儲存變更';
+    }
+  } catch (err) {
+    showToast('網路錯誤: ' + err.message);
+    btn.disabled = false; btn.textContent = '儲存變更';
+  }
+}
+
 async function renderTripDetail() {
   const app = document.getElementById('app');
   const trips = await ensureTrips();
@@ -647,14 +694,20 @@ async function renderTripDetail() {
 
   const wrap = document.createElement('div');
   wrap.innerHTML =
-    '<div class="section-title">' + esc(trip['Location'] || trip['Trip']) + '</div>' +
-    '<div class="hero-meta" style="color:var(--muted);margin:-6px 0 12px">' + esc(trip['Start Date'] || '') + (trip['End Date'] ? ' → ' + esc(trip['End Date']) : '') + '</div>' +
+    '<div style="display:flex;align-items:center;gap:8px">' +
+      '<div class="section-title" style="flex:1;margin:0">' + esc(trip['Location'] || trip['Trip']) + '</div>' +
+      '<button class="btn btn-ghost" style="flex:0 0 auto;min-width:0;padding:6px 12px" onclick="editTripOpen=!editTripOpen; render()">' + (editTripOpen ? '取消' : '✏️ 編輯行程') + '</button>' +
+    '</div>' +
+    '<div class="hero-meta" style="color:var(--muted);margin:4px 0 12px">' + esc(trip['Start Date'] || '') + (trip['End Date'] ? ' → ' + esc(trip['End Date']) : '') + '</div>' +
+    '<div id="trip-edit-slot"></div>' +
     '<div class="pill-tabs">' +
       TRIP_TABS.map(([k, label]) => '<div class="pill-tab' + (currentTripTab === k ? ' active' : '') + '" onclick="navigateTo(\'tripDetail\',{trip:\'' + esc(currentTrip) + '\',tab:\'' + k + '\'})">' + label + '</div>').join('') +
     '</div>' +
     '<div id="trip-tab-content"></div>';
   app.innerHTML = '';
   app.appendChild(wrap);
+
+  if (editTripOpen) document.getElementById('trip-edit-slot').appendChild(buildTripEditForm(trip));
 
   const contentEl = document.getElementById('trip-tab-content');
   if (currentTripTab === 'itinerary') {
@@ -787,16 +840,76 @@ function buildMissionCard(item, showTripTag) {
       '</div>' +
     '</div></div>';
 
-  if (!isDone) {
-    const actions = document.createElement('div');
-    actions.className = 'card-actions';
-    const isPendingConfirm = pendingSend === rowIndex;
-    actions.innerHTML =
-      '<button class="btn ' + (isPendingConfirm ? 'btn-coral-confirm' : 'btn-coral') + '" onclick="onSendNowClick(' + rowIndex + ', this)">' +
-      (isPendingConfirm ? '再按一次確認送出' : (isSent ? '重新推送' : '立即推送')) + '</button>';
-    card.appendChild(actions);
-  }
+  const actions = document.createElement('div');
+  actions.className = 'card-actions';
+  const isPendingConfirm = pendingSend === rowIndex;
+  actions.innerHTML =
+    (!isDone
+      ? '<button class="btn ' + (isPendingConfirm ? 'btn-coral-confirm' : 'btn-coral') + '" onclick="onSendNowClick(' + rowIndex + ', this)">' +
+        (isPendingConfirm ? '再按一次確認送出' : (isSent ? '重新推送' : '立即推送')) + '</button>'
+      : '') +
+    '<button class="btn btn-ghost" onclick="editingMissionRow=' + (editingMissionRow === rowIndex ? 'null' : rowIndex) + '; render()">' +
+      (editingMissionRow === rowIndex ? '取消' : '✏️ 編輯') + '</button>';
+  card.appendChild(actions);
+
+  if (editingMissionRow === rowIndex) card.appendChild(buildMissionEditForm(item));
   return card;
+}
+
+// Edit an itinerary item's mission-relevant fields. Writes via updateItem
+// (organiser-only, validated). Only fields present are sent, so untouched
+// columns and all system columns (Triggered/Completed At) are left intact.
+const MISSION_STATUS_OPTIONS = ['Unstarted', 'Researching', 'Planned', 'Booked', 'Abandoned'];
+
+function buildMissionEditForm(item) {
+  const rowIndex = item['_rowIndex'];
+  const card = document.createElement('div');
+  card.className = 'form-card';
+  card.style.margin = '0 12px 12px';
+  card.innerHTML =
+    '<div class="form-label">任務名稱</div><input class="form-input" id="me-item" value="' + esc(item['Item'] || '') + '">' +
+    '<div class="form-label">任務觸發時間（留空 = 用開始時間；不限日期任務可留空）</div><input class="form-input" id="me-mst" placeholder="YYYY/MM/dd HH:mm" value="' + esc(item['Mission Start Time'] || '') + '">' +
+    '<div class="form-label">開始時間</div><input class="form-input" id="me-start" placeholder="YYYY/MM/dd HH:mm" value="' + esc(item['Start Time'] || '') + '">' +
+    '<div class="form-label">結束時間</div><input class="form-input" id="me-end" placeholder="YYYY/MM/dd HH:mm" value="' + esc(item['End Time'] || '') + '">' +
+    '<div class="form-label">說明 / 完成條件</div><textarea class="form-input" id="me-note">' + esc(item['Note'] || '') + '</textarea>' +
+    '<div class="form-label">獎勵</div><input class="form-input" id="me-reward" value="' + esc(item['Reward'] || '') + '">' +
+    '<div class="form-label">狀態</div><select class="form-input form-select" id="me-status">' +
+      MISSION_STATUS_OPTIONS.map(s => '<option value="' + s + '"' + (item['Status'] === s ? ' selected' : '') + '>' + s + '</option>').join('') +
+    '</select>' +
+    '<button class="btn btn-coral btn-block" style="margin-top:12px" onclick="submitUpdateMission(' + rowIndex + ', this)">儲存變更</button>';
+  return card;
+}
+
+async function submitUpdateMission(rowIndex, btn) {
+  const card = btn.closest('.form-card');
+  const item = card.querySelector('#me-item').value.trim();
+  if (!item) return;
+  btn.disabled = true; btn.textContent = '儲存中…';
+  try {
+    const result = await apiPost('updateItem', {
+      rowIndex, item,
+      missionStartTime: card.querySelector('#me-mst').value.trim(),
+      startTime: card.querySelector('#me-start').value.trim(),
+      endTime: card.querySelector('#me-end').value.trim(),
+      note: card.querySelector('#me-note').value,
+      reward: card.querySelector('#me-reward').value.trim(),
+      status: card.querySelector('#me-status').value
+    });
+    if (result.ok) {
+      editingMissionRow = null;
+      showToast('✓ 已更新任務');
+      // Invalidate every cache that could hold the stale mission row.
+      orgMissionsCache = null; allMissionsForPickerCache = null;
+      if (currentTrip) { delete orgViewCache[currentTrip]; delete tripItemsCache[currentTrip]; }
+      render();
+    } else {
+      showToast('錯誤: ' + (result.error || '請稍後再試'));
+      btn.disabled = false; btn.textContent = '儲存變更';
+    }
+  } catch (err) {
+    showToast('網路錯誤: ' + err.message);
+    btn.disabled = false; btn.textContent = '儲存變更';
+  }
 }
 
 function buildRestaurantCard(item, altGroupId, trip) {
