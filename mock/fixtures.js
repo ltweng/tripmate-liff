@@ -70,6 +70,10 @@ const DB = {
     { ID: 't-1', Trip: 'Summer26',   Task: '確認民宿訂金已付',           Status: 'open', 'Created At': '2026-07-10', 'Completed At': '' },
     { ID: 't-2', Trip: '',           Task: '買 NFC 貼紙（潛水任務用）',   Status: 'open', 'Created At': '2026-07-09', 'Completed At': '' },
     { ID: 't-3', Trip: 'Winter2025', Task: '寄送行程總結給小美',         Status: 'done', 'Created At': '2025-12-29', 'Completed At': '2025-12-30' }
+  ],
+  packingChecks: [
+    // Trip, LINE User ID, Packing Item ID, Checked At — per-user check-off (F7)
+    { Trip: 'Summer26', 'LINE User ID': 'U_ORGANISER_MOCK', 'Packing Item ID': 'p-1', 'Checked At': '2026/07/15 10:00' }
   ]
 };
 
@@ -179,6 +183,13 @@ function handleMockGet(action, params) {
     return { achievements: list };
   }
   if (action === 'getPackingAdmin') return { items: DB.packingItems };
+  if (action === 'getMyPacking') {
+    const trip = params.trip;
+    const tagged = DB.packingItems.filter(it => String(it['Trip Tags'] || '').split(',').map(s => s.trim()).indexOf(trip) >= 0);
+    const items = tagged.length ? tagged : DB.packingItems;
+    const checkedSet = new Set(DB.packingChecks.filter(c => c['LINE User ID'] === params.userId && c.Trip === trip).map(c => c['Packing Item ID']));
+    return { trip, items: items.map(it => ({ ID: it.ID, Category: it.Category, Item: it.Item, Note: it.Note || '', Shared: it.Shared, checked: checkedSet.has(it.ID) })) };
+  }
   if (action === 'getTasks') {
     const raw = String(params.trips || '').trim();
     let tasks = DB.tasks;
@@ -291,6 +302,27 @@ function handleMockPost(action, body) {
     if (DB.trips.some(t => t.Trip === body.trip)) return { error: 'A trip named "' + body.trip + '" already exists' };
     DB.trips.push({ Trip: body.trip, 'Start Date': body.startDate || '', 'End Date': body.endDate || '', Timezone: 'Asia/Taipei', 'Daily Briefing Time': '07:00', Status: 'planning', Location: body.location || '', Cover: '', Agreement: '', Announcement: body.announcement || '' });
     return { ok: true, trip: body.trip };
+  }
+  if (action === 'togglePackingItem') {
+    const idx = DB.packingChecks.findIndex(c => c.Trip === body.trip && c['LINE User ID'] === body.userId && c['Packing Item ID'] === body.itemId);
+    const want = body.checked === true || body.checked === 'true';
+    if (want && idx < 0) DB.packingChecks.push({ Trip: body.trip, 'LINE User ID': body.userId, 'Packing Item ID': body.itemId, 'Checked At': mockNow() });
+    if (!want && idx >= 0) DB.packingChecks.splice(idx, 1);
+    return { ok: true, checked: want };
+  }
+  if (action === 'updateTrip') {
+    const t = DB.trips.find(x => x.Trip === body.trip);
+    if (!t) return { error: 'Trip not found' };
+    const cols = { location: 'Location', startDate: 'Start Date', endDate: 'End Date', announcement: 'Announcement', cover: 'Cover', agreement: 'Agreement', status: 'Status', briefingTime: 'Daily Briefing Time', timezone: 'Timezone' };
+    Object.keys(cols).forEach(k => { if (body[k] !== undefined) t[cols[k]] = body[k]; });
+    return { ok: true, trip: body.trip };
+  }
+  if (action === 'updateItem') {
+    const it = DB.itinerary.find(x => x._rowIndex === Number(body.rowIndex));
+    if (!it) return { error: 'Row out of range' };
+    const cols = { item: 'Item', category: 'Category', status: 'Status', startTime: 'Start Time', endTime: 'End Time', missionStartTime: 'Mission Start Time', note: 'Note', reward: 'Reward', area: 'Area', subArea: 'Sub Area', openHour: 'Open Hour', price: 'Price', currency: 'Currency', address: 'Address', phone: 'Phone', gmPage: 'GM Page', website: 'Website', closedOn: 'Closed on', cover: 'Cover', liffUrl: 'LIFF URL' };
+    Object.keys(cols).forEach(k => { if (body[k] !== undefined) it[cols[k]] = body[k]; });
+    return { ok: true, rowIndex: body.rowIndex };
   }
   if (action === 'createTask') {
     const id = 't-' + (DB.tasks.length + 1) + '-' + Math.floor(Math.random() * 1000);
