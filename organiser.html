@@ -1,1714 +1,417 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TripMate — Organiser</title>
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --deep:        #0B2B4E;
-      --deep-mid:    #163D63;
-      --ocean:       #1A73C0;
-      --teal:        #1BAFBF;
-      --teal-light:  #E3F7F9;
-      --coral:       #D95F42;
-      --coral-light: #FDF0EC;
-      --bg:          #EEF5FB;
-      --card:        #FFFFFF;
-      --text:        #0B2342;
-      --muted:       #587A9A;
-      --border:      #C2D9ED;
-      --chosen-bg:   #E3F7F9;
-      --divider:     #DCE9F4;
-      --radius:      18px;
-      --radius-sm:   12px;
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-
-    body {
-      font-family: 'Nunito', -apple-system, 'Noto Sans TC', 'Helvetica Neue', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      font-size: 14px;
-      line-height: 1.5;
-    }
-
-    h1, h2, .headline { font-family: 'Fraunces', 'Noto Sans TC', serif; }
-
-    /* ── Header ───────────────────────────────────────── */
-    #header {
-      position: sticky; top: 0; z-index: 20;
-      background: var(--deep);
-      padding: 14px 16px;
-      display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    }
-    #brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
-    #brand h1 { font-size: 17px; font-weight: 700; color: #FFFFFF; letter-spacing: -0.2px; white-space: nowrap; }
-    #brand .wave { font-size: 20px; flex-shrink: 0; }
-    #view-title { font-size: 12px; color: rgba(255,255,255,0.65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .badge {
-      font-size: 9px; font-weight: 800; letter-spacing: 0.5px;
-      background: var(--coral); color: #fff;
-      padding: 2px 8px; border-radius: 20px; vertical-align: middle; margin-left: 6px;
-    }
-    #hamburger {
-      flex-shrink: 0; width: 36px; height: 36px; border-radius: 10px;
-      background: rgba(255,255,255,0.1); border: none; color: #fff; font-size: 18px; cursor: pointer;
-    }
-    #back-btn { flex-shrink: 0; background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; padding: 0 4px; }
-
-    /* ── Drawer ───────────────────────────────────────── */
-    #drawer-backdrop {
-      position: fixed; inset: 0; background: rgba(11,35,66,0.4);
-      opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 29;
-    }
-    #drawer-backdrop.open { opacity: 1; pointer-events: auto; }
-    #drawer {
-      position: fixed; top: 0; right: 0; bottom: 0; width: 78%; max-width: 300px;
-      background: var(--deep); z-index: 30; padding: 20px 0;
-      transform: translateX(100%); transition: transform 0.22s ease-out;
-      overflow-y: auto;
-    }
-    #drawer.open { transform: translateX(0); }
-    .drawer-header { padding: 0 20px 16px; color: #fff; }
-    .drawer-header .name { font-weight: 700; font-size: 15px; }
-    .drawer-item {
-      display: flex; align-items: center; gap: 12px;
-      padding: 13px 20px; color: rgba(255,255,255,0.85); font-weight: 700; font-size: 14px;
-      cursor: pointer; user-select: none;
-    }
-    .drawer-item:active { background: rgba(255,255,255,0.08); }
-    .drawer-item .emoji { font-size: 18px; width: 22px; text-align: center; }
-    .drawer-item.active { background: rgba(255,255,255,0.1); color: #fff; }
-
-    /* ── Shared states ────────────────────────────────── */
-    #loading, .no-items { text-align: center; padding: 64px 24px; font-size: 14px; color: var(--muted); }
-    .no-items p { margin-top: 6px; font-size: 12px; }
-    .view-loading { text-align: center; padding: 48px 0; }
-    .spinner {
-      width: 32px; height: 32px; margin: 0 auto 14px;
-      border: 3px solid var(--divider); border-top-color: var(--teal); border-radius: 50%;
-      animation: spin 0.75s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    #app { padding: 14px 14px 40px; }
-
-    /* ── Pill tabs / filter chips ─────────────────────── */
-    .pill-tabs {
-      display: flex; gap: 4px; background: var(--card); border: 1px solid var(--border);
-      border-radius: 999px; padding: 4px; margin-bottom: 12px; overflow-x: auto;
-      scrollbar-width: none;
-    }
-    .pill-tabs::-webkit-scrollbar { display: none; }
-    .pill-tab {
-      flex: 1; min-width: 64px; padding: 8px 6px; font-size: 12.5px; font-weight: 700;
-      text-align: center; border-radius: 999px; color: var(--muted); cursor: pointer; white-space: nowrap;
-    }
-    .pill-tab.active { background: var(--deep); color: #fff; }
-    .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
-    .chip {
-      font-size: 12px; font-weight: 700; padding: 6px 13px; border-radius: 999px;
-      background: var(--card); border: 1px solid var(--border); color: var(--muted); cursor: pointer;
-    }
-    .chip.active { background: var(--deep); color: #fff; border-color: var(--deep); }
-
-    /* ── Card (item / mission / achievement) ─────────── */
-    .card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 10px; overflow: hidden; }
-    .card.mission  { border-left: 4px solid var(--coral); }
-    .card.chosen   { background: var(--chosen-bg); border-color: var(--teal); }
-    .card-body { padding: 13px 14px; }
-    .card-top  { display: flex; align-items: flex-start; gap: 10px; }
-    .cat-icon {
-      flex-shrink: 0; width: 36px; height: 36px; border-radius: var(--radius-sm); background: var(--bg);
-      display: flex; align-items: center; justify-content: center; font-size: 17px;
-    }
-    .card.mission .cat-icon { background: var(--coral-light); }
-    .card.chosen  .cat-icon { background: rgba(27,175,191,0.12); }
-    .card-info { flex: 1; min-width: 0; }
-    .card-title { font-size: 14.5px; font-weight: 700; margin-bottom: 2px; word-break: break-word; }
-    .card-time  { font-size: 11px; color: var(--muted); margin-bottom: 1px; }
-    .card-note  { font-size: 12px; color: #4A6680; margin-top: 5px; white-space: pre-wrap; word-break: break-word; }
-    .pill { display: inline-block; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 20px; margin-left: 5px; vertical-align: middle; }
-    .pill-done   { background: var(--teal-light); color: #0A7A8A; }
-    .pill-untriggered { background: var(--border); color: var(--muted); }
-    .pill-triggered   { background: var(--coral-light); color: #B04530; }
-    .pill-muted  { background: var(--border); color: var(--muted); }
-    .pill-status { background: var(--deep); color: #fff; }
-    .trip-tag { color: #fff; }
-    .card-actions { padding: 0 14px 13px; display: flex; gap: 8px; flex-wrap: wrap; }
-    .btn {
-      flex: 1; min-width: 110px; padding: 10px 12px; border: none; border-radius: var(--radius-sm);
-      font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
-      transition: opacity 0.12s, transform 0.1s;
-    }
-    .btn:active:not(:disabled) { opacity: 0.75; transform: scale(0.98); }
-    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .btn-coral  { background: var(--coral); color: #fff; }
-    .btn-coral-confirm { background: #B04530; color: #fff; }
-    .btn-teal   { background: var(--teal);  color: #fff; }
-    .btn-ghost  { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
-    .btn-copy   { background: var(--deep-mid); color: #fff; flex: 0 0 auto; min-width: 72px; }
-    .btn-block  { width: 100%; }
-    .btn-sm     { flex: 0 0 auto; min-width: 0; padding: 7px 12px; font-size: 12px; }
-    .alt-header { display: flex; align-items: center; gap: 6px; padding: 6px 4px 3px; font-size: 11px; font-weight: 800; color: var(--teal); text-transform: uppercase; letter-spacing: 0.5px; }
-    .alt-divider { border: none; border-top: 1px solid var(--divider); margin: 4px 0; }
-    .inline-success { font-size: 13px; font-weight: 700; color: var(--teal); }
-
-    /* ── NFC list ─────────────────────────────────────── */
-    .nfc-row { display: flex; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px; }
-    .nfc-info { flex: 1; min-width: 0; }
-    .nfc-title { font-size: 13.5px; font-weight: 700; }
-    .nfc-url { font-size: 11px; color: var(--muted); word-break: break-all; margin-top: 2px; }
-    .nfc-missing { font-size: 11px; color: var(--coral); margin-top: 2px; }
-
-    /* ── Section / day headers ────────────────────────── */
-    .section-title { font-size: 15px; font-weight: 700; margin: 4px 0 10px; font-family: 'Fraunces', serif; }
-    .day-header { display: flex; align-items: center; gap: 8px; margin: 14px 0 8px; cursor: pointer; user-select: none; }
-    .day-circle { width: 26px; height: 26px; border-radius: 50%; background: var(--deep); color: #fff; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .day-label { font-size: 13px; font-weight: 700; color: var(--text); flex: 1; }
-    .day-toggle { font-size: 11px; color: var(--muted); }
-    .day-items.collapsed { display: none; }
-
-    /* ── Home dashboard ───────────────────────────────── */
-    .hero-card { background: linear-gradient(135deg, var(--deep), var(--ocean)); border-radius: var(--radius); padding: 20px; color: #fff; margin-bottom: 14px; }
-    .hero-trip-name { font-size: 20px; font-weight: 700; font-family: 'Fraunces', serif; }
-    .hero-meta { font-size: 12px; color: rgba(255,255,255,0.75); margin-top: 4px; }
-    .countdown-badge { display: inline-block; margin-top: 10px; background: rgba(255,255,255,0.15); padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 700; }
-    .stat-row { display: flex; gap: 10px; margin-bottom: 14px; }
-    .stat-card { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; text-align: center; }
-    .stat-num { font-size: 22px; font-weight: 800; color: var(--deep); font-family: 'Fraunces', serif; }
-    .stat-label { font-size: 11px; color: var(--muted); font-weight: 700; margin-top: 2px; }
-
-    /* ── Trip cards ────────────────────────────────────── */
-    .trip-card { border-radius: var(--radius); overflow: hidden; margin-bottom: 12px; border: 1px solid var(--border); background: var(--card); cursor: pointer; }
-    .trip-card-cover { height: 80px; background: #B4CDE6; background-size: cover; background-position: center; }
-    .trip-card-body { padding: 12px 14px; }
-    .trip-card-name { font-weight: 700; font-size: 15px; }
-    .trip-card-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
-
-    /* ── Roster ────────────────────────────────────────── */
-    .roster-card { display: flex; align-items: center; gap: 12px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 8px; cursor: pointer; }
-    .roster-avatar, .avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--border); object-fit: cover; flex-shrink: 0; }
-    .roster-name { font-weight: 700; font-size: 14px; }
-    .tag-row { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; }
-    .tag { font-size: 10px; font-weight: 700; background: var(--bg); color: var(--muted); padding: 2px 8px; border-radius: 999px; }
-    .tag.achv-tag { background: var(--coral-light); color: #B04530; }
-
-    /* ── Achievements ──────────────────────────────────── */
-    .achv-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 10px; }
-    .achv-top { display: flex; align-items: center; gap: 10px; }
-    .achv-emoji { font-size: 24px; flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%; background: var(--bg); display: flex; align-items: center; justify-content: center; }
-    .achv-card.unpublished .achv-emoji { filter: grayscale(1); opacity: 0.6; }
-    .achv-title { font-weight: 700; font-size: 14.5px; }
-    .achv-desc { font-size: 12px; color: var(--muted); margin-top: 3px; }
-    mark { background: #FFE9A8; color: inherit; border-radius: 3px; padding: 0 1px; }
-
-    /* ── Packing list ──────────────────────────────────── */
-    .pack-category { margin-bottom: 16px; }
-    .pack-category-title { font-weight: 700; font-size: 13px; margin-bottom: 6px; color: var(--deep-mid); display: flex; align-items: center; justify-content: space-between; }
-    .pack-item { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 13px; color: var(--text); }
-    .pack-item.untagged { color: var(--muted); }
-    .pack-item input { width: 16px; height: 16px; flex-shrink: 0; }
-    .pack-note { font-size: 11px; color: var(--muted); margin: -4px 0 10px; }
-    .add-item-row { display: flex; gap: 6px; margin-top: 6px; }
-    .add-item-row input { flex: 1; min-width: 0; }
-
-    /* ── Tasks ─────────────────────────────────────────── */
-    .task-row { display: flex; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 11px 13px; margin-bottom: 7px; }
-    .task-row input { width: 18px; height: 18px; flex-shrink: 0; }
-    .task-text { flex: 1; font-size: 13.5px; }
-    .task-row.done .task-text { text-decoration: line-through; color: var(--muted); }
-    .task-trip-tag { font-size: 10px; color: var(--muted); }
-
-    /* ── Forms ─────────────────────────────────────────── */
-    .form-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 14px; }
-    .form-label { font-size: 12px; font-weight: 700; color: var(--muted); margin: 10px 0 4px; }
-    .form-label:first-child { margin-top: 0; }
-    .form-input, .form-select, textarea.form-input {
-      width: 100%; padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);
-      font-size: 14px; font-family: inherit; background: #fff;
-    }
-    textarea.form-input { resize: vertical; min-height: 60px; }
-    .search-input { width: 100%; margin-bottom: 12px; padding: 10px 14px; border-radius: 999px; border: 1px solid var(--border); font-size: 13px; font-family: inherit; }
-    .member-select { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
-
-    .toast {
-      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-      background: var(--deep); color: #fff; font-size: 13px; font-weight: 700;
-      padding: 10px 18px; border-radius: 999px; opacity: 0; pointer-events: none;
-      transition: opacity 0.2s; z-index: 50; white-space: nowrap;
-    }
-    .toast.show { opacity: 1; }
-  </style>
-</head>
-<body>
-
-<div id="header">
-  <div id="brand">
-    <button id="back-btn" style="display:none" onclick="handleBack()">←</button>
-    <span class="wave">🌊</span>
-    <div>
-      <h1>TripMate<span class="badge">ORGANISER</span></h1>
-      <div id="view-title"></div>
-    </div>
-  </div>
-  <button id="hamburger" onclick="toggleDrawer()" style="display:none">☰</button>
-</div>
-
-<div id="drawer-backdrop" onclick="closeDrawer()"></div>
-<div id="drawer">
-  <div class="drawer-header"><div class="name" id="drawer-name"></div></div>
-  <div class="drawer-item" data-view="home"         onclick="navigateTo('home')"><span class="emoji">🏠</span>首頁 Homepage</div>
-  <div class="drawer-item" data-view="trips"        onclick="navigateTo('trips')"><span class="emoji">🧳</span>行程 Trips</div>
-  <div class="drawer-item" data-view="itineraries"  onclick="navigateTo('itineraries')"><span class="emoji">🗓️</span>行程總覽 Itineraries</div>
-  <div class="drawer-item" data-view="roster"       onclick="navigateTo('roster')"><span class="emoji">👥</span>成員 Rosters</div>
-  <div class="drawer-item" data-view="missions"     onclick="navigateTo('missions')"><span class="emoji">🎯</span>任務 Missions</div>
-  <div class="drawer-item" data-view="achievements" onclick="navigateTo('achievements')"><span class="emoji">🏅</span>成就 Achievements</div>
-  <div class="drawer-item" data-view="packing"      onclick="navigateTo('packing')"><span class="emoji">🎒</span>打包清單 Packing List</div>
-  <div class="drawer-item" data-view="tasks"        onclick="navigateTo('tasks')"><span class="emoji">✅</span>待辦 Tasks</div>
-</div>
-
-<div id="loading"><div class="spinner"></div>載入中…</div>
-<div id="app" style="display:none"></div>
-<div id="toast" class="toast"></div>
-
-<script>
-// ── CONFIG — only non-secret values live here ────────────────────────────────
-const CONFIG = {
-  liffId: '2010468064-4RvCpshe', // organiser LIFF app's own ID (per "LIFF ID.md"; uKRXbFfR is the PARTICIPANT app)
-  gasUrl: 'https://script.google.com/macros/s/AKfycbx4yqj479yhsIAOUBkIWFKNvlKFnTCVZQ18uyiaxXtoGXJURpZ0bw26zgBsiqYu2rjQ/exec'
-  // No secret here — GAS validates your LINE userId (+ ORGANISER_IDS membership) instead.
-};
-// ─────────────────────────────────────────────────────────────────────────────
-
-const EMOJI = {
-  'Transportation':'🚌','Attraction':'🏛️','Restaurant':'🍽️','Shopping':'🛍️',
-  'Accommodation':'🏨','Note':'📝','Task':'📋','Mission':'🎯'
-};
-
-const TRIP_TABS = [['itinerary','行程'], ['missions','任務'], ['roster','成員'], ['packing','打包']];
-const TRIP_COLOR_PALETTE = ['#1BAFBF', '#D95F42', '#5B8DBF', '#7A6FD9', '#3FAE7A', '#C9A227'];
-const DEFAULT_TRIP_COVER = '#B4CDE6';
-
-// ── Global state ──────────────────────────────────────────────────────────────
-let currentUser    = null;
-let currentView    = 'home';
-let currentTrip    = null;   // Trip code, when currentView === 'tripDetail'
-let currentTripTab = 'itinerary';
-
-let tripsCache      = null;  // getTrips (all trips, unscoped — organiser-only)
-let rosterCache      = null;
-let tripItemsCache   = {};   // trip -> items (getTimeline scope=all)
-let orgMissionsCache = null; // getOrganizerMissions (cross-trip)
-let achievementsCache = null;
-let packingCache      = null;
-let tasksCache        = null;
-let homeCache         = null;
-
-let pendingSend = null; // rowIndex awaiting second confirm tap (mission Send Now)
-
-// Filter/UI state per view
-let tripsFilter          = 'all';
-let missionsTripFilter   = [];      // selected trip codes, [] = all
-let rosterTripFilter     = [];
-let selectedMember       = null;    // userId shown in roster member-detail
-let achievementsTripFilter = [];
-let achievementsSearch     = '';
-let achievementFormOpen    = false;
-let awardingAchievementId  = null;  // achievement ID currently showing the member picker
-let editingAchievementId   = null;  // achievement ID currently showing the edit form
-let allMissionsForPickerCache = null; // getOrganizerMissions across every trip, for the mission-linking checklist
-let packingSelectedTrip    = null;
-let packingSearch          = '';
-let packingChecked         = null;  // Set of item IDs currently tagged for packingSelectedTrip (client-side, dirty until "Update")
-let tasksTripFilter        = 'all'; // 'all' | '' (general only) | a trip code
-let tasksStatusFilter      = 'open';
-let itinerariesSelectedTrip = null;
-let tripMissionFilter       = 'all'; // 未觸發/已推送/已完成 filter inside Trip > Missions tab
-let editTripOpen            = false; // Trip Individual page: showing the trip-settings edit form
-let editingMissionRow       = null;  // itinerary rowIndex currently showing the mission edit form
-
-// ── Init ──────────────────────────────────────────────────────────────────────
-
-function withTimeout(promise, ms, label) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error(label + ' 超過 ' + (ms / 1000) + ' 秒未回應，請檢查網路連線')), ms))
-  ]);
-}
-
-async function init() {
-  try {
-    await withTimeout(liff.init({ liffId: CONFIG.liffId }), 15000, 'liff.init()');
-    if (!liff.isLoggedIn()) { liff.login(); return; }
-
-    const profile = await withTimeout(liff.getProfile(), 10000, 'liff.getProfile()');
-    currentUser = { userId: profile.userId, displayName: profile.displayName };
-    // ID token for server-side identity verification (security fix C1); null
-    // until the LIFF app has the openid scope, which the server tolerates
-    // while LINE_LOGIN_CHANNEL_ID is unset.
-    currentUser.idToken = (typeof liff.getIDToken === 'function' ? liff.getIDToken() : null) || '';
-    document.getElementById('drawer-name').textContent = profile.displayName;
-
-    navigateTo('home');
-  } catch (err) {
-    document.getElementById('loading').innerHTML = '<div class="no-items">初始化失敗: ' + esc(err.message) + '</div>';
-  }
-}
-
-// ── API helpers ───────────────────────────────────────────────────────────────
-
-// A rejected ID token (expired mid-session — LINE issues them with a ~1h life
-// and liff only mints a fresh one on page load) can't be fixed by retrying;
-// the only recovery is reopening the LIFF.
-function handleTokenExpiry(result) {
-  if (result && result.error === 'Unauthorized' && result.reason === 'token') {
-    document.getElementById('app').innerHTML =
-      '<div class="no-items">登入憑證已過期，請關閉此頁面後重新開啟 🙏</div>';
-    return true;
-  }
-  return false;
-}
-
-async function apiGet(action, params) {
-  const qs = new URLSearchParams(Object.assign({
-    action,
-    userId: currentUser ? currentUser.userId : '',
-    idToken: currentUser ? currentUser.idToken : ''
-  }, params || {}));
-  const res = await fetch(CONFIG.gasUrl + '?' + qs.toString());
-  if (!res.ok) throw new Error('伺服器錯誤 (' + res.status + ')');
-  const result = await res.json();
-  handleTokenExpiry(result);
-  return result;
-}
-
-async function apiPost(action, body) {
-  const res = await fetch(CONFIG.gasUrl, {
-    method: 'POST',
-    // text/plain avoids a CORS preflight (OPTIONS), which Apps Script Web Apps
-    // don't implement — doPost still JSON.parses the raw body regardless of header.
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(Object.assign({
-      action,
-      userId: currentUser ? currentUser.userId : '',
-      idToken: currentUser ? currentUser.idToken : ''
-    }, body || {}))
-  });
-  if (!res.ok) throw new Error('伺服器錯誤 (' + res.status + ')');
-  const result = await res.json();
-  handleTokenExpiry(result);
-  return result;
-}
-
-// ── Navigation / router ────────────────────────────────────────────────────────
-
-function navigateTo(view, opts) {
-  opts = opts || {};
-  currentView = view;
-  if (view === 'tripDetail') {
-    if (opts.trip) currentTrip = opts.trip;
-    currentTripTab = opts.tab || 'itinerary';
-  }
-  selectedMember = null;
-  closeDrawer();
-  render();
-}
-
-function handleBack() { navigateTo('trips'); }
-
-function toggleDrawer() {
-  document.getElementById('drawer').classList.toggle('open');
-  document.getElementById('drawer-backdrop').classList.toggle('open');
-}
-function closeDrawer() {
-  document.getElementById('drawer').classList.remove('open');
-  document.getElementById('drawer-backdrop').classList.remove('open');
-}
-
-const VIEW_TITLES = {
-  home: '首頁', trips: '行程', tripDetail: '', itineraries: '行程總覽', roster: '成員',
-  missions: '任務', achievements: '成就', packing: '打包清單', tasks: '待辦'
-};
-
-function updateHeader() {
-  document.getElementById('hamburger').style.display = 'block';
-  document.getElementById('back-btn').style.display = currentView === 'tripDetail' ? 'block' : 'none';
-  document.getElementById('view-title').textContent = currentView === 'tripDetail' ? (currentTrip || '') : (VIEW_TITLES[currentView] || '');
-  document.querySelectorAll('.drawer-item').forEach(el => el.classList.toggle('active', el.dataset.view === currentView));
-}
-
-// ── Render dispatcher ───────────────────────────────────────────────────────────
-
-async function render() {
-  document.getElementById('loading').style.display = 'none';
-  const app = document.getElementById('app');
-  app.style.display = 'block';
-  updateHeader();
-  app.innerHTML = '<div class="view-loading"><div class="spinner"></div></div>';
-  try {
-    if (currentView === 'home')         return await renderHome();
-    if (currentView === 'trips')        return await renderTrips();
-    if (currentView === 'tripDetail')   return await renderTripDetail();
-    if (currentView === 'itineraries')  return await renderItineraries();
-    if (currentView === 'roster')       return await renderRoster();
-    if (currentView === 'missions')     return await renderMissions();
-    if (currentView === 'achievements') return await renderAchievements();
-    if (currentView === 'packing')      return await renderPacking();
-    if (currentView === 'tasks')        return await renderTasks();
-  } catch (err) {
-    app.innerHTML = '<div class="no-items">載入失敗<p>' + esc(err.message) + '</p></div>';
-  }
-}
-
-// ── Data fetchers (cached) ───────────────────────────────────────────────────
-
-async function ensureTrips(force) {
-  if (tripsCache && !force) return tripsCache;
-  const res = await apiGet('getTrips');
-  tripsCache = res.trips || [];
-  return tripsCache;
-}
-async function ensureRoster(force) {
-  if (rosterCache && !force) return rosterCache;
-  const res = await apiGet('getRoster');
-  rosterCache = res.roster || [];
-  return rosterCache;
-}
-async function ensureTripItems(trip, force) {
-  if (tripItemsCache[trip] && !force) return tripItemsCache[trip];
-  const res = await apiGet('getTimeline', { trip, scope: 'all' });
-  tripItemsCache[trip] = res.items || [];
-  return tripItemsCache[trip];
-}
-async function ensureAchievements(force) {
-  if (achievementsCache && !force) return achievementsCache;
-  const res = await apiGet('getAchievementsAdmin');
-  achievementsCache = res.achievements || [];
-  return achievementsCache;
-}
-async function ensurePacking(force) {
-  if (packingCache && !force) return packingCache;
-  const res = await apiGet('getPackingAdmin');
-  packingCache = res.items || [];
-  return packingCache;
-}
-async function ensureHome(force) {
-  if (homeCache && !force) return homeCache;
-  homeCache = await apiGet('getOrganizerHome');
-  return homeCache;
-}
-async function ensureAllMissionsForPicker(force) {
-  if (allMissionsForPickerCache && !force) return allMissionsForPickerCache;
-  const res = await apiGet('getOrganizerMissions', {});
-  allMissionsForPickerCache = res.missions || [];
-  return allMissionsForPickerCache;
-}
-
-// ── Home ──────────────────────────────────────────────────────────────────────
-
-let homeTab = 'trips';
-
-async function renderHome() {
-  const app = document.getElementById('app');
-  const home = await ensureHome();
-  const trips = await ensureTrips();
-
-  const nextTrip = trips.find(t => t['Trip'] === home.nextTrip);
-  const wrap = document.createElement('div');
-  wrap.innerHTML =
-    (nextTrip ? (
-      '<div class="hero-card">' +
-        '<div class="hero-trip-name">' + esc(nextTrip['Location'] || nextTrip['Trip']) + '</div>' +
-        '<div class="hero-meta">' + esc(nextTrip['Start Date'] || '') + (nextTrip['End Date'] ? ' → ' + esc(nextTrip['End Date']) : '') + '</div>' +
-        (home.countdown != null ? '<div class="countdown-badge">' + (home.countdown > 0 ? '倒數 ' + home.countdown + ' 天' : (home.countdown === 0 ? '就是今天！' : '進行中')) + '</div>' : '') +
-      '</div>'
-    ) : '<div class="no-items" style="padding:20px 0">尚無即將到來的行程</div>') +
-    '<div class="stat-row">' +
-      '<div class="stat-card"><div class="stat-num">' + trips.length + '</div><div class="stat-label">總行程數</div></div>' +
-      '<div class="stat-card"><div class="stat-num">' + home.openTaskCount + '</div><div class="stat-label">未完成待辦</div></div>' +
-    '</div>' +
-    '<div class="pill-tabs">' +
-      [['trips','行程'], ['roster','成員'], ['achievements','成就']].map(([k,label]) =>
-        '<div class="pill-tab' + (homeTab === k ? ' active' : '') + '" onclick="homeTab=\'' + k + '\'; render()">' + label + '</div>'
-      ).join('') +
-    '</div>' +
-    '<div id="home-tab-content"></div>';
-  app.innerHTML = '';
-  app.appendChild(wrap);
-
-  const el = document.getElementById('home-tab-content');
-  if (homeTab === 'trips') { el.appendChild(await buildTripCards(trips.slice(0, 6))); }
-  else if (homeTab === 'roster') { el.appendChild(await buildRosterList((await ensureRoster()).slice(0, 6))); }
-  else { el.appendChild(await buildAchievementCards((await ensureAchievements()).slice(0, 6))); }
-}
-
-// ── Trips overview + Trip Individual ───────────────────────────────────────────
-
-function tripStatus(t, today) {
-  if (!t['Start Date'] || !t['End Date']) return 'planning';
-  if (t['End Date'] < today) return 'completed';
-  if (t['Start Date'] > today) return 'upcoming';
-  return 'ongoing';
-}
-
-async function buildTripCards(trips) {
-  const wrap = document.createElement('div');
-  if (!trips.length) { wrap.innerHTML = '<div class="no-items">沒有符合條件的行程</div>'; return wrap; }
-  trips.forEach(t => {
-    const card = document.createElement('div');
-    card.className = 'trip-card';
-    card.onclick = () => navigateTo('tripDetail', { trip: t['Trip'] });
-    const coverStyle = t['Cover'] ? 'background-image:url(\'' + esc(t['Cover']) + '\')' : 'background:' + DEFAULT_TRIP_COVER;
-    card.innerHTML =
-      '<div class="trip-card-cover" style="' + coverStyle + '"></div>' +
-      '<div class="trip-card-body">' +
-        '<div class="trip-card-name">' + esc(t['Location'] || t['Trip']) + '</div>' +
-        '<div class="trip-card-meta">' + esc(t['Start Date'] || '') + (t['End Date'] ? ' → ' + esc(t['End Date']) : '') + '</div>' +
-      '</div>';
-    wrap.appendChild(card);
-  });
-  return wrap;
-}
-
-async function renderTrips() {
-  const app = document.getElementById('app');
-  const today = todayStr();
-  const trips = (await ensureTrips()).map(t => Object.assign({}, t, { _status: tripStatus(t, today) }));
-  const filtered = tripsFilter === 'all' ? trips : trips.filter(t => t._status === tripsFilter);
-
-  const wrap = document.createElement('div');
-  wrap.innerHTML =
-    '<div class="chips">' +
-      [['all','全部'], ['ongoing','進行中'], ['upcoming','即將'], ['completed','已完成'], ['planning','規劃中']].map(([k,label]) =>
-        '<div class="chip' + (tripsFilter === k ? ' active' : '') + '" onclick="tripsFilter=\'' + k + '\'; render()">' + label + '</div>'
-      ).join('') +
-    '</div>' +
-    '<button class="btn btn-teal btn-block" style="margin-bottom:14px" onclick="tripFormOpen=!tripFormOpen; render()">' + (tripFormOpen ? '取消' : '+ 新增行程') + '</button>' +
-    '<div id="trip-form-slot"></div>' +
-    '<div id="trip-cards"></div>';
-  app.innerHTML = '';
-  app.appendChild(wrap);
-
-  if (tripFormOpen) document.getElementById('trip-form-slot').appendChild(buildTripForm());
-  document.getElementById('trip-cards').appendChild(await buildTripCards(filtered));
-}
-
-let tripFormOpen = false;
-
-function buildTripForm() {
-  const card = document.createElement('div');
-  card.className = 'form-card';
-  card.innerHTML =
-    '<div class="form-label">行程代號（同時作為加入通關密語）</div><input class="form-input" id="tf-trip" placeholder="例如 Winter2027">' +
-    '<div class="form-label">地點</div><input class="form-input" id="tf-location" placeholder="例如 北海道">' +
-    '<div class="form-label">開始日期</div><input class="form-input" id="tf-start" type="date">' +
-    '<div class="form-label">結束日期</div><input class="form-input" id="tf-end" type="date">' +
-    '<div class="form-label">公告 / 簡介</div><textarea class="form-input" id="tf-announcement" placeholder="給參加者看的歡迎訊息"></textarea>' +
-    '<button class="btn btn-coral btn-block" style="margin-top:12px" onclick="submitCreateTrip(this)">建立行程</button>';
-  return card;
-}
-
-async function submitCreateTrip(btn) {
-  const trip = document.getElementById('tf-trip').value.trim();
-  if (!trip) return;
-  btn.disabled = true; btn.textContent = '建立中…';
-  try {
-    const result = await apiPost('createTrip', {
-      trip,
-      location: document.getElementById('tf-location').value.trim(),
-      startDate: (document.getElementById('tf-start').value || '').replace(/-/g, '/'),
-      endDate: (document.getElementById('tf-end').value || '').replace(/-/g, '/'),
-      announcement: document.getElementById('tf-announcement').value.trim()
-    });
-    if (result.ok) {
-      tripFormOpen = false;
-      showToast('✓ 已建立行程「' + trip + '」');
-      await ensureTrips(true);
-      render();
-    } else {
-      showToast('錯誤: ' + (result.error || '請稍後再試'));
-      btn.disabled = false; btn.textContent = '建立行程';
-    }
-  } catch (err) {
-    showToast('網路錯誤: ' + err.message);
-    btn.disabled = false; btn.textContent = '建立行程';
-  }
-}
-
-// Prefill an edit form from the trip's current settings. The Trip code is the
-// join passcode + the key every other sheet references, so it's shown read-only,
-// not editable (rename would orphan itinerary/roster/achievement rows).
-function buildTripEditForm(trip) {
-  const toDateInput = (v) => String(v || '').slice(0, 10).replace(/\//g, '-');
-  const card = document.createElement('div');
-  card.className = 'form-card';
-  card.innerHTML =
-    '<div class="form-label">行程代號（通關密語，不可更改）</div><input class="form-input" value="' + esc(trip['Trip']) + '" disabled>' +
-    '<div class="form-label">地點</div><input class="form-input" id="te-location" value="' + esc(trip['Location'] || '') + '">' +
-    '<div class="form-label">開始日期</div><input class="form-input" id="te-start" type="date" value="' + esc(toDateInput(trip['Start Date'])) + '">' +
-    '<div class="form-label">結束日期</div><input class="form-input" id="te-end" type="date" value="' + esc(toDateInput(trip['End Date'])) + '">' +
-    '<div class="form-label">公告 / 簡介</div><textarea class="form-input" id="te-announcement">' + esc(trip['Announcement'] || '') + '</textarea>' +
-    '<div class="form-label">旅行公約（每行一條，留空 = 使用預設）</div><textarea class="form-input" id="te-agreement" style="min-height:90px">' + esc(trip['Agreement'] || '') + '</textarea>' +
-    '<button class="btn btn-coral btn-block" style="margin-top:12px" onclick="submitUpdateTrip(\'' + esc(trip['Trip']) + '\', this)">儲存變更</button>';
-  return card;
-}
-
-async function submitUpdateTrip(trip, btn) {
-  const card = btn.closest('.form-card');
-  btn.disabled = true; btn.textContent = '儲存中…';
-  try {
-    const result = await apiPost('updateTrip', {
-      trip,
-      location: card.querySelector('#te-location').value.trim(),
-      startDate: (card.querySelector('#te-start').value || '').replace(/-/g, '/'),
-      endDate: (card.querySelector('#te-end').value || '').replace(/-/g, '/'),
-      announcement: card.querySelector('#te-announcement').value.trim(),
-      agreement: card.querySelector('#te-agreement').value
-    });
-    if (result.ok) {
-      editTripOpen = false;
-      showToast('✓ 已更新行程設定');
-      await ensureTrips(true);
-      render();
-    } else {
-      showToast('錯誤: ' + (result.error || '請稍後再試'));
-      btn.disabled = false; btn.textContent = '儲存變更';
-    }
-  } catch (err) {
-    showToast('網路錯誤: ' + err.message);
-    btn.disabled = false; btn.textContent = '儲存變更';
-  }
-}
-
-async function renderTripDetail() {
-  const app = document.getElementById('app');
-  const trips = await ensureTrips();
-  const trip = trips.find(t => t['Trip'] === currentTrip);
-  if (!trip) { app.innerHTML = '<div class="no-items">找不到這個行程</div>'; return; }
-
-  const wrap = document.createElement('div');
-  wrap.innerHTML =
-    '<div style="display:flex;align-items:center;gap:8px">' +
-      '<div class="section-title" style="flex:1;margin:0">' + esc(trip['Location'] || trip['Trip']) + '</div>' +
-      '<button class="btn btn-ghost" style="flex:0 0 auto;min-width:0;padding:6px 12px" onclick="editTripOpen=!editTripOpen; render()">' + (editTripOpen ? '取消' : '✏️ 編輯行程') + '</button>' +
-    '</div>' +
-    '<div class="hero-meta" style="color:var(--muted);margin:4px 0 12px">' + esc(trip['Start Date'] || '') + (trip['End Date'] ? ' → ' + esc(trip['End Date']) : '') + '</div>' +
-    '<div id="trip-edit-slot"></div>' +
-    '<div class="pill-tabs">' +
-      TRIP_TABS.map(([k, label]) => '<div class="pill-tab' + (currentTripTab === k ? ' active' : '') + '" onclick="navigateTo(\'tripDetail\',{trip:\'' + esc(currentTrip) + '\',tab:\'' + k + '\'})">' + label + '</div>').join('') +
-    '</div>' +
-    '<div id="trip-tab-content"></div>';
-  app.innerHTML = '';
-  app.appendChild(wrap);
-
-  if (editTripOpen) document.getElementById('trip-edit-slot').appendChild(buildTripEditForm(trip));
-
-  const contentEl = document.getElementById('trip-tab-content');
-  if (currentTripTab === 'itinerary') {
-    const items = await ensureTripItems(currentTrip);
-    renderDayGroupedItems(contentEl, items);
-  } else if (currentTripTab === 'missions') {
-    await renderTripMissionsTab(contentEl, currentTrip);
-  } else if (currentTripTab === 'roster') {
-    const roster = (await ensureRoster()).filter(m => m.trips && m.trips.indexOf(currentTrip) >= 0);
-    contentEl.appendChild(await buildRosterList(roster));
-  } else if (currentTripTab === 'packing') {
-    await renderTripPackingTab(contentEl, currentTrip);
-  }
-}
-
-// Defaults to showing every packing item (no filter) — items tagged for this
-// trip are checked/highlighted via the shared checkedSet param, rather than
-// hard-filtering the list down to only tagged items, which used to show
-// nothing at all until the organiser had explicitly tagged something.
-let tripPackingFilter = 'all'; // 'all' (default) | 'tagged'
-
-async function renderTripPackingTab(contentEl, trip) {
-  const allItems = await ensurePacking();
-  const taggedSet = new Set(
-    allItems.filter(it => String(it['Trip Tags'] || '').split(',').map(s => s.trim()).indexOf(trip) >= 0).map(it => it['ID'])
-  );
-
-  contentEl.innerHTML = '<div class="chips" id="trip-pack-chips"></div><div id="trip-pack-list"></div>';
-  const chipsEl = contentEl.querySelector('#trip-pack-chips');
-  [['all', '全部物品'], ['tagged', '已標記']].forEach(([k, label]) => {
-    const chip = document.createElement('div');
-    chip.className = 'chip' + (tripPackingFilter === k ? ' active' : '');
-    chip.textContent = label;
-    chip.onclick = () => { tripPackingFilter = k; render(); };
-    chipsEl.appendChild(chip);
-  });
-
-  const listEl = contentEl.querySelector('#trip-pack-list');
-  const visible = tripPackingFilter === 'tagged' ? allItems.filter(it => taggedSet.has(it['ID'])) : allItems;
-  if (!visible.length) { listEl.innerHTML = '<div class="no-items">尚無打包清單項目</div>'; return; }
-  renderPackingCategoryList(listEl, visible, taggedSet, false);
-}
-
-// ── Trip > Missions tab (the trip-day control panel: Send Now / 選這家 / NFC) ──
-
-async function fetchOrganizerView(trip, force) {
-  return apiGet('getOrganizerView', { trip });
-}
-
-let orgViewCache = {}; // trip -> {missions, altGroups, today}
-
-async function renderTripMissionsTab(contentEl, trip) {
-  if (!orgViewCache[trip]) orgViewCache[trip] = await fetchOrganizerView(trip);
-  const data = orgViewCache[trip];
-
-  contentEl.innerHTML =
-    '<div class="pill-tabs">' +
-      [['send','推送控制'], ['nfc','NFC 連結']].map(([k,label]) =>
-        '<div class="pill-tab' + (tripMissionSubTab === k ? ' active' : '') + '" onclick="tripMissionSubTab=\'' + k + '\'; render()">' + label + '</div>'
-      ).join('') +
-    '</div><div id="tm-sub"></div>';
-  const sub = document.getElementById('tm-sub');
-
-  if (tripMissionSubTab === 'nfc') {
-    sub.appendChild(buildNfcList(data.missions || []));
-    return;
-  }
-
-  const filters = document.createElement('div');
-  filters.className = 'chips';
-  filters.innerHTML = [['all','全部'], ['today','今天'], ['pending','待推送'], ['done','已完成']].map(([k,label]) =>
-    '<div class="chip' + (tripMissionFilter === k ? ' active' : '') + '" onclick="tripMissionFilter=\'' + k + '\'; render()">' + label + '</div>'
-  ).join('');
-  sub.appendChild(filters);
-
-  let missions = data.missions || [];
-  if (tripMissionFilter === 'today') {
-    missions = missions.filter(m => String(m['Start Time'] || '').replace(/-/g,'/').slice(0,10) === data.today
-      || String(m['Mission Start Time'] || '').replace(/-/g,'/').slice(0,10) === data.today);
-  } else if (tripMissionFilter === 'pending') {
-    missions = missions.filter(m => !m['Triggered At'] && !m['Completed At']);
-  } else if (tripMissionFilter === 'done') {
-    missions = missions.filter(m => !!m['Completed At']);
-  }
-
-  if (!missions.length) { sub.appendChild(elNoItems('🎯 沒有符合條件的任務')); }
-  else missions.forEach(m => sub.appendChild(buildMissionCard(m, false)));
-
-  const altGroups = data.altGroups || [];
-  if (altGroups.length) {
-    const hdr = document.createElement('div');
-    hdr.className = 'section-title';
-    hdr.style.marginTop = '16px';
-    hdr.textContent = '🍽️ 餐廳選擇（今明兩天）';
-    sub.appendChild(hdr);
-    altGroups.forEach(g => {
-      g.members.forEach((m, i) => {
-        if (i > 0) { const hr = document.createElement('hr'); hr.className = 'alt-divider'; sub.appendChild(hr); }
-        sub.appendChild(buildRestaurantCard(m, g.id, trip));
-      });
-    });
-  }
-}
-
-let tripMissionSubTab = 'send';
-
-function buildMissionCard(item, showTripTag) {
-  const rowIndex = item['_rowIndex'] || 0;
-  const isDone = !!item['Completed At'];
-  const isSent = !!item['Triggered At'];
-  const note   = (item['Note'] || '').trim();
-  const reward = (item['Reward'] || '').trim();
-  const timeStr = fmtTime(item['Mission Start Time'] || item['Start Time'], item['End Time']);
-
-  const statusPill = isDone
-    ? '<span class="pill pill-done">✓ 已完成</span>'
-    : isSent ? '<span class="pill pill-triggered">已推送</span>' : '<span class="pill pill-untriggered">未觸發</span>';
-  const tripTag = showTripTag && item['Trip'] ? '<span class="pill trip-tag" style="background:' + tripColor(item['Trip']) + '">' + esc(item['Trip']) + '</span>' : '';
-
-  const card = document.createElement('div');
-  card.className = 'card mission';
-  card.innerHTML =
-    '<div class="card-body"><div class="card-top">' +
-      '<div class="cat-icon">🎯</div>' +
-      '<div class="card-info">' +
-        '<div class="card-title">' + esc(item['Item'] || '') + statusPill + tripTag + '</div>' +
-        (timeStr ? '<div class="card-time">🕐 ' + timeStr + '</div>' : '') +
-        (note ? '<div class="card-note">' + esc(note) + '</div>' : '') +
-        (reward ? '<div class="card-note" style="color:var(--coral)">🎁 ' + esc(reward) + '</div>' : '') +
-      '</div>' +
-    '</div></div>';
-
-  const actions = document.createElement('div');
-  actions.className = 'card-actions';
-  const isPendingConfirm = pendingSend === rowIndex;
-  actions.innerHTML =
-    (!isDone
-      ? '<button class="btn ' + (isPendingConfirm ? 'btn-coral-confirm' : 'btn-coral') + '" onclick="onSendNowClick(' + rowIndex + ', this)">' +
-        (isPendingConfirm ? '再按一次確認送出' : (isSent ? '重新推送' : '立即推送')) + '</button>'
-      : '') +
-    '<button class="btn btn-ghost" onclick="editingMissionRow=' + (editingMissionRow === rowIndex ? 'null' : rowIndex) + '; render()">' +
-      (editingMissionRow === rowIndex ? '取消' : '✏️ 編輯') + '</button>';
-  card.appendChild(actions);
-
-  if (editingMissionRow === rowIndex) card.appendChild(buildMissionEditForm(item));
-  return card;
-}
-
-// Edit an itinerary item's mission-relevant fields. Writes via updateItem
-// (organiser-only, validated). Only fields present are sent, so untouched
-// columns and all system columns (Triggered/Completed At) are left intact.
-const MISSION_STATUS_OPTIONS = ['Unstarted', 'Researching', 'Planned', 'Booked', 'Abandoned'];
-
-function buildMissionEditForm(item) {
-  const rowIndex = item['_rowIndex'];
-  const card = document.createElement('div');
-  card.className = 'form-card';
-  card.style.margin = '0 12px 12px';
-  card.innerHTML =
-    '<div class="form-label">任務名稱</div><input class="form-input" id="me-item" value="' + esc(item['Item'] || '') + '">' +
-    '<div class="form-label">任務觸發時間（留空 = 用開始時間；不限日期任務可留空）</div><input class="form-input" id="me-mst" placeholder="YYYY/MM/dd HH:mm" value="' + esc(item['Mission Start Time'] || '') + '">' +
-    '<div class="form-label">開始時間</div><input class="form-input" id="me-start" placeholder="YYYY/MM/dd HH:mm" value="' + esc(item['Start Time'] || '') + '">' +
-    '<div class="form-label">結束時間</div><input class="form-input" id="me-end" placeholder="YYYY/MM/dd HH:mm" value="' + esc(item['End Time'] || '') + '">' +
-    '<div class="form-label">說明 / 完成條件</div><textarea class="form-input" id="me-note">' + esc(item['Note'] || '') + '</textarea>' +
-    '<div class="form-label">獎勵</div><input class="form-input" id="me-reward" value="' + esc(item['Reward'] || '') + '">' +
-    '<div class="form-label">狀態</div><select class="form-input form-select" id="me-status">' +
-      MISSION_STATUS_OPTIONS.map(s => '<option value="' + s + '"' + (item['Status'] === s ? ' selected' : '') + '>' + s + '</option>').join('') +
-    '</select>' +
-    '<button class="btn btn-coral btn-block" style="margin-top:12px" onclick="submitUpdateMission(' + rowIndex + ', this)">儲存變更</button>';
-  return card;
-}
-
-async function submitUpdateMission(rowIndex, btn) {
-  const card = btn.closest('.form-card');
-  const item = card.querySelector('#me-item').value.trim();
-  if (!item) return;
-  btn.disabled = true; btn.textContent = '儲存中…';
-  try {
-    const result = await apiPost('updateItem', {
-      rowIndex, item,
-      missionStartTime: card.querySelector('#me-mst').value.trim(),
-      startTime: card.querySelector('#me-start').value.trim(),
-      endTime: card.querySelector('#me-end').value.trim(),
-      note: card.querySelector('#me-note').value,
-      reward: card.querySelector('#me-reward').value.trim(),
-      status: card.querySelector('#me-status').value
-    });
-    if (result.ok) {
-      editingMissionRow = null;
-      showToast('✓ 已更新任務');
-      // Invalidate every cache that could hold the stale mission row.
-      orgMissionsCache = null; allMissionsForPickerCache = null;
-      if (currentTrip) { delete orgViewCache[currentTrip]; delete tripItemsCache[currentTrip]; }
-      render();
-    } else {
-      showToast('錯誤: ' + (result.error || '請稍後再試'));
-      btn.disabled = false; btn.textContent = '儲存變更';
-    }
-  } catch (err) {
-    showToast('網路錯誤: ' + err.message);
-    btn.disabled = false; btn.textContent = '儲存變更';
-  }
-}
-
-function buildRestaurantCard(item, altGroupId, trip) {
-  const rowIndex = item['_rowIndex'] || 0;
-  const isChosen = item['Is Chosen'] === true || item['Is Chosen'] === 'true';
-  const note = (item['Note'] || '').trim();
-  const timeStr = fmtTime(item['Start Time'], item['End Time']);
-
-  const card = document.createElement('div');
-  card.className = 'card' + (isChosen ? ' chosen' : '');
-  card.innerHTML =
-    '<div class="card-body"><div class="card-top">' +
-      '<div class="cat-icon">🍽️</div>' +
-      '<div class="card-info">' +
-        '<div class="card-title">' + esc(item['Item'] || '') + (isChosen ? '<span class="pill pill-done">✓ 已選</span>' : '') + '</div>' +
-        (timeStr ? '<div class="card-time">🕐 ' + timeStr + '</div>' : '') +
-        (note ? '<div class="card-note">' + esc(note) + '</div>' : '') +
-      '</div>' +
-    '</div></div>';
-
-  const actions = document.createElement('div');
-  actions.className = 'card-actions';
-  actions.innerHTML = isChosen
-    ? '<span class="inline-success">✓ 已選這家</span>'
-    : '<button class="btn btn-teal" onclick="chooseRestaurant(' + rowIndex + ', \'' + esc(altGroupId) + '\', \'' + esc(trip) + '\', this)">選這家</button>';
-  card.appendChild(actions);
-  return card;
-}
-
-function buildNfcList(missions) {
-  const wrap = document.createElement('div');
-  if (!missions.length) { wrap.appendChild(elNoItems('📎 尚無任務')); return wrap; }
-  missions.forEach(m => {
-    const url = (m['LIFF URL'] || '').trim();
-    const row = document.createElement('div');
-    row.className = 'nfc-row';
-    row.innerHTML =
-      '<div class="nfc-info">' +
-        '<div class="nfc-title">🎯 ' + esc(m['Item'] || '') + '</div>' +
-        (url ? '<div class="nfc-url">' + esc(url) + '</div>' : '<div class="nfc-missing">尚未產生連結 — 請於 GAS 執行「Auto-fill LIFF URLs」</div>') +
-      '</div>' +
-      (url ? '<button class="btn btn-copy" onclick="copyText(\'' + esc(url) + '\', this)">複製連結</button>' : '');
-    wrap.appendChild(row);
-  });
-  return wrap;
-}
-
-function onSendNowClick(rowIndex, btn) {
-  if (pendingSend === rowIndex) { sendNow(rowIndex, btn); }
-  else {
-    pendingSend = rowIndex;
-    render();
-    setTimeout(() => { if (pendingSend === rowIndex) { pendingSend = null; render(); } }, 4000);
-  }
-}
-
-async function sendNow(rowIndex, btn) {
-  pendingSend = null;
-  btn.disabled = true; btn.textContent = '送出中…';
-  try {
-    const result = await apiPost('sendNow', { rowIndex });
-    if (result.ok) {
-      showToast('✓ 已推送任務通知');
-      orgViewCache = {}; orgMissionsCache = null;
-      render();
-    } else { showToast('錯誤: ' + (result.error || '請稍後再試')); render(); }
-  } catch (err) { showToast('網路錯誤: ' + err.message); render(); }
-}
-
-async function chooseRestaurant(rowIndex, altGroupId, trip, btn) {
-  btn.disabled = true; btn.textContent = '選擇中…';
-  try {
-    const result = await apiPost('chooseRestaurant', { rowIndex, altGroupId });
-    if (result.ok) {
-      if (trip) delete orgViewCache[trip];
-      tripItemsCache = {};
-      showToast('✓ 已更新選擇');
-      render();
-    } else { btn.disabled = false; btn.textContent = '選這家'; showToast('錯誤: ' + (result.error || '請稍後再試')); }
-  } catch (err) { btn.disabled = false; btn.textContent = '選這家'; showToast('網路錯誤: ' + err.message); }
-}
-
-// ── Itineraries (cross-trip, one trip at a time) ─────────────────────────────
-
-async function renderItineraries() {
-  const app = document.getElementById('app');
-  const today = todayStr();
-  const trips = await ensureTrips();
-  const ordered = orderTripsForItineraries(trips, today);
-  if (!itinerariesSelectedTrip || !trips.some(t => t['Trip'] === itinerariesSelectedTrip)) {
-    itinerariesSelectedTrip = ordered[0] ? ordered[0]['Trip'] : null;
-  }
-
-  const wrap = document.createElement('div');
-  wrap.innerHTML =
-    '<select class="form-select" style="margin-bottom:14px" onchange="itinerariesSelectedTrip=this.value; render()">' +
-      ordered.map(t => '<option value="' + esc(t['Trip']) + '"' + (t['Trip'] === itinerariesSelectedTrip ? ' selected' : '') + '>' + esc(t['Location'] || t['Trip']) + '</option>').join('') +
-    '</select><div id="itin-content"></div>';
-  app.innerHTML = '';
-  app.appendChild(wrap);
-
-  if (!itinerariesSelectedTrip) { document.getElementById('itin-content').innerHTML = '<div class="no-items">尚無行程資料</div>'; return; }
-  const items = await ensureTripItems(itinerariesSelectedTrip);
-  renderDayGroupedItems(document.getElementById('itin-content'), items);
-}
-
-// Soonest-upcoming first > future (closest→farthest) > past (alphabetical) — per
-// Tripmate Webpage Structure.md §Organiser/3.
-function orderTripsForItineraries(trips, today) {
-  const upcoming = trips.filter(t => t['Start Date'] && t['Start Date'] >= today).sort((a,b) => String(a['Start Date']).localeCompare(String(b['Start Date'])));
-  const past     = trips.filter(t => !t['Start Date'] || t['Start Date'] < today).sort((a,b) => String(a['Trip']).localeCompare(String(b['Trip'])));
-  return upcoming.concat(past);
-}
-
-function renderDayGroupedItems(container, items) {
-  container.innerHTML = '';
-  const { dayGroups, undated } = groupByDay(items);
-  if (!dayGroups.length && !undated.length) { container.innerHTML = '<div class="no-items">尚無行程資料</div>'; return; }
-  dayGroups.forEach((g, i) => {
-    const dayWrap = document.createElement('div');
-    dayWrap.innerHTML =
-      '<div class="day-header" onclick="this.nextElementSibling.classList.toggle(\'collapsed\')">' +
-        '<div class="day-circle">' + (i + 1) + '</div>' +
-        '<div class="day-label">' + esc(g.day) + '</div>' +
-        '<div class="day-toggle">▾</div>' +
-      '</div><div class="day-items"></div>';
-    container.appendChild(dayWrap);
-    renderItemList(dayWrap.querySelector('.day-items'), g.items);
-  });
-  if (undated.length) {
-    const hdr = document.createElement('div');
-    hdr.className = 'day-header';
-    hdr.innerHTML = '<div class="day-label" style="color:var(--muted)">未定日期</div>';
-    container.appendChild(hdr);
-    const list = document.createElement('div');
-    container.appendChild(list);
-    renderItemList(list, undated);
-  }
-}
-
-function renderItemList(container, items) {
-  const altSeen = new Set(), altBuckets = {};
-  items.forEach(it => { const id = it['Alt Group ID']; if (id) (altBuckets[id] = altBuckets[id] || []).push(it); });
-  items.forEach(it => {
-    const id = it['Alt Group ID'];
-    if (id) {
-      if (altSeen.has(id)) return;
-      altSeen.add(id);
-      altBuckets[id].forEach((m, i) => {
-        if (i > 0) { const hr = document.createElement('hr'); hr.className = 'alt-divider'; container.appendChild(hr); }
-        container.appendChild(buildItineraryCard(m));
-      });
-    } else {
-      container.appendChild(buildItineraryCard(it));
-    }
-  });
-}
-
-function buildItineraryCard(item) {
-  const isMission = !!item['Is Mission'];
-  const isDone = !!item['Completed At'];
-  const isChosen = item['Is Chosen'] === true || item['Is Chosen'] === 'true';
-  const emoji = EMOJI[item['Category']] || '•';
-  const timeStr = fmtTime(item['Start Time'], item['End Time']);
-  const note = (item['Note'] || '').trim();
-
-  const card = document.createElement('div');
-  card.className = 'card' + (isMission ? ' mission' : '') + (isChosen ? ' chosen' : '');
-  card.innerHTML =
-    '<div class="card-body"><div class="card-top">' +
-      '<div class="cat-icon">' + emoji + '</div>' +
-      '<div class="card-info">' +
-        '<div class="card-title">' + esc(item['Item'] || '') + (isDone ? '<span class="pill pill-done">✓</span>' : '') + '</div>' +
-        (timeStr ? '<div class="card-time">🕐 ' + timeStr + '</div>' : '') +
-        (note ? '<div class="card-note">' + esc(note) + '</div>' : '') +
-      '</div>' +
-    '</div></div>';
-  return card;
-}
-
-// ── Rosters ───────────────────────────────────────────────────────────────────
-
-async function buildRosterList(roster) {
-  const wrap = document.createElement('div');
-  if (!roster.length) { wrap.innerHTML = '<div class="no-items">尚無成員資料</div>'; return wrap; }
-  roster.forEach(m => {
-    const card = document.createElement('div');
-    card.className = 'roster-card';
-    card.onclick = () => { selectedMember = selectedMember === m.userId ? null : m.userId; render(); };
-    card.innerHTML =
-      (m.pictureUrl ? '<img class="roster-avatar" src="' + esc(m.pictureUrl) + '">' : '<div class="roster-avatar"></div>') +
-      '<div style="flex:1;min-width:0">' +
-        '<div class="roster-name">' + esc(m.displayName) + (m.isMe ? ' (你)' : '') + '</div>' +
-        '<div class="tag-row">' +
-          (m.trips.length ? m.trips.map(t => '<span class="tag">' + esc(t) + '</span>').join('') : '<span class="tag">尚無行程</span>') +
-        '</div>' +
-      '</div>';
-    wrap.appendChild(card);
-    if (selectedMember === m.userId) {
-      const detail = document.createElement('div');
-      detail.className = 'form-card';
-      detail.style.marginTop = '-6px';
-      detail.innerHTML =
-        '<div class="form-label">參加行程</div>' +
-        '<div class="tag-row">' + (m.trips.length ? m.trips.map(t => '<span class="tag">' + esc(t) + '</span>').join('') : '<span class="tag">無</span>') + '</div>' +
-        '<div class="form-label">已獲成就</div>' +
-        '<div class="tag-row">' + (m.achievements.length ? m.achievements.map(a => '<span class="tag achv-tag">🏅 ' + esc(a) + '</span>').join('') : '<span class="tag">尚無</span>') + '</div>';
-      wrap.appendChild(detail);
-    }
-  });
-  return wrap;
-}
-
-async function renderRoster() {
-  const app = document.getElementById('app');
-  const trips = await ensureTrips();
-  const roster = await ensureRoster(true);
-
-  const wrap = document.createElement('div');
-  wrap.innerHTML =
-    '<div class="chips" id="roster-trip-chips"></div>' +
-    '<button class="btn btn-teal btn-block" style="margin-bottom:14px" onclick="inviteMember()">+ 邀請成員</button>' +
-    '<div id="roster-list"></div>';
-  app.innerHTML = '';
-  app.appendChild(wrap);
-
-  const chipsEl = document.getElementById('roster-trip-chips');
-  trips.forEach(t => {
-    const active = rosterTripFilter.indexOf(t['Trip']) >= 0;
-    const chip = document.createElement('div');
-    chip.className = 'chip' + (active ? ' active' : '');
-    chip.textContent = t['Location'] || t['Trip'];
-    chip.onclick = () => {
-      rosterTripFilter = active ? rosterTripFilter.filter(x => x !== t['Trip']) : rosterTripFilter.concat([t['Trip']]);
-      render();
-    };
-    chipsEl.appendChild(chip);
-  });
-
-  const filtered = rosterTripFilter.length
-    ? roster.filter(m => m.trips.some(t => rosterTripFilter.indexOf(t) >= 0))
-    : roster;
-  document.getElementById('roster-list').appendChild(await buildRosterList(filtered));
-}
-
-async function inviteMember() {
-  const home = await ensureHome();
-  if (!home.liffBaseUrl) { showToast('尚未設定 LIFF_BASE_URL'); return; }
-  // ?register=1 → opening the link auto-registers the member into the
-  // universal roster (Participants) with no passcode; joining a trip's own
-  // roster still needs its passcode, which the same page then asks for.
-  const url = home.liffBaseUrl + (home.liffBaseUrl.indexOf('?') >= 0 ? '&' : '?') + 'register=1';
-  copyText(url);
-}
-
-// ── Missions (cross-trip catalog) ────────────────────────────────────────────
-
-async function renderMissions() {
-  const app = document.getElementById('app');
-  const trips = await ensureTrips();
-
-  const wrap = document.createElement('div');
-  wrap.innerHTML = '<div class="chips" id="missions-trip-chips"></div><div id="missions-list"></div>';
-  app.innerHTML = '';
-  app.appendChild(wrap);
-
-  const chipsEl = document.getElementById('missions-trip-chips');
-  trips.forEach(t => {
-    const active = missionsTripFilter.indexOf(t['Trip']) >= 0;
-    const chip = document.createElement('div');
-    chip.className = 'chip' + (active ? ' active' : '');
-    chip.textContent = t['Location'] || t['Trip'];
-    chip.onclick = () => {
-      missionsTripFilter = active ? missionsTripFilter.filter(x => x !== t['Trip']) : missionsTripFilter.concat([t['Trip']]);
-      orgMissionsCache = null;
-      render();
-    };
-    chipsEl.appendChild(chip);
-  });
-
-  if (!orgMissionsCache) {
-    const res = await apiGet('getOrganizerMissions', missionsTripFilter.length ? { trips: missionsTripFilter.join(',') } : {});
-    orgMissionsCache = res.missions || [];
-  }
-  const listEl = document.getElementById('missions-list');
-  if (!orgMissionsCache.length) { listEl.appendChild(elNoItems('🎯 沒有符合條件的任務')); return; }
-  orgMissionsCache.forEach(m => listEl.appendChild(buildMissionCard(m, true)));
-}
-
-// ── Achievements ──────────────────────────────────────────────────────────────
-
-function highlightMatch(text, query) {
-  const safe = esc(text);
-  if (!query) return safe;
-  const idx = safe.toLowerCase().indexOf(query.toLowerCase());
-  if (idx < 0) return safe;
-  return safe.slice(0, idx) + '<mark>' + safe.slice(idx, idx + query.length) + '</mark>' + safe.slice(idx + query.length);
-}
-
-async function buildAchievementCards(achievements) {
-  const wrap = document.createElement('div');
-  if (!achievements.length) { wrap.innerHTML = '<div class="no-items">尚無成就</div>'; return wrap; }
-  const roster = await ensureRoster();
-
-  for (const a of achievements) {
-    const card = document.createElement('div');
-    card.className = 'achv-card' + (a['Status'] === 'Unpublished' ? ' unpublished' : '');
-    const tripTags = String(a['Trip Tags'] || '').split(',').map(s => s.trim()).filter(Boolean);
-    const statusLabel = { Published: '已發布', Unpublished: '未發布', Expired: '已過期' }[a['Status']] || a['Status'];
-    const linkedRows = a.linkedMissionRows || [];
-    const doneCount = linkedRows.filter(m => m['Completed At']).length;
-
-    card.innerHTML =
-      '<div class="achv-top" style="cursor:pointer">' +
-        '<div class="achv-emoji">' + esc(a['Emoji'] || '🏅') + '</div>' +
-        '<div style="flex:1;min-width:0">' +
-          '<div class="achv-title">' + highlightMatch(a['Title'] || '', achievementsSearch) + '<span class="pill pill-status">' + esc(statusLabel) + '</span></div>' +
-          '<div class="achv-desc">' + highlightMatch(a['Description'] || '', achievementsSearch) + '</div>' +
-          (linkedRows.length ? '<div class="achv-desc" style="margin-top:2px">🎯 已連結 ' + linkedRows.length + ' 個任務・已完成 ' + doneCount + ' 個</div>' : '') +
-        '</div>' +
-      '</div>' +
-      '<div class="tag-row" style="margin-top:10px">' +
-        tripTags.map(t => '<span class="tag">' + esc(t) + '</span>').join('') +
-        (a.members || []).map(m => '<span class="tag achv-tag">' + esc(m.displayName) + '</span>').join('') +
-      '</div>';
-    card.querySelector('.achv-top').onclick = () => {
-      editingAchievementId = editingAchievementId === a['ID'] ? null : a['ID'];
-      render();
-    };
-
-    const actions = document.createElement('div');
-    actions.className = 'card-actions';
-    actions.style.padding = '10px 0 0';
-    actions.innerHTML =
-      '<button class="btn btn-ghost btn-sm" onclick="toggleAchievementStatus(\'' + a['ID'] + '\', \'' + a['Status'] + '\')">' +
-        (a['Status'] === 'Published' ? '下架' : '發布') +
-      '</button>' +
-      '<button class="btn btn-teal btn-sm" onclick="awardingAchievementId = awardingAchievementId===\'' + a['ID'] + '\' ? null : \'' + a['ID'] + '\'; render()">頒發</button>';
-    card.appendChild(actions);
-
-    if (awardingAchievementId === a['ID']) {
-      const picker = document.createElement('div');
-      picker.className = 'member-select';
-      roster.forEach(m => {
-        const btn = document.createElement('button');
-        btn.className = 'chip';
-        btn.textContent = m.displayName;
-        btn.onclick = () => awardAchievement(a['ID'], m.userId);
-        picker.appendChild(btn);
-      });
-      card.appendChild(picker);
-    }
-    wrap.appendChild(card);
-
-    if (editingAchievementId === a['ID']) {
-      wrap.appendChild(await buildAchievementEditForm(a));
-    }
-  }
-  return wrap;
-}
-
-function parseLinkedMissions(raw) {
-  return String(raw || '').split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
-}
-
-async function buildAchievementEditForm(a) {
-  const missions = await ensureAllMissionsForPicker();
-  const linkedSet = new Set(parseLinkedMissions(a['Linked Missions']));
-
-  const card = document.createElement('div');
-  card.className = 'form-card';
-  card.style.marginTop = '-6px';
-  card.innerHTML =
-    '<div class="form-label">名稱</div><input class="form-input" id="ef-title" value="' + esc(a['Title'] || '') + '">' +
-    '<div class="form-label">表情符號</div><input class="form-input" id="ef-emoji" value="' + esc(a['Emoji'] || '🏅') + '">' +
-    '<div class="form-label">說明</div><textarea class="form-input" id="ef-desc">' + esc(a['Description'] || '') + '</textarea>' +
-    '<div class="form-label">適用行程（逗號分隔，留空 = 不限）</div><input class="form-input" id="ef-trips" value="' + esc(a['Trip Tags'] || '') + '">' +
-    '<div class="form-label">連結任務（全部完成即自動獲得成就，可複選）</div>' +
-    '<div id="ef-missions"></div>' +
-    '<button class="btn btn-coral btn-block" style="margin-top:12px" onclick="submitUpdateAchievement(\'' + a['ID'] + '\', this)">儲存變更</button>';
-
-  const missionsEl = card.querySelector('#ef-missions');
-  if (!missions.length) {
-    missionsEl.innerHTML = '<div class="no-items" style="padding:10px 0">尚無任務可連結</div>';
-  } else {
-    missions.forEach(m => {
-      const row = document.createElement('label');
-      row.className = 'pack-item';
-      row.innerHTML =
-        '<input type="checkbox" data-row-index="' + m['_rowIndex'] + '"' + (linkedSet.has(m['_rowIndex']) ? ' checked' : '') + '>' +
-        esc(m['Item'] || '') +
-        ' <span style="color:var(--muted);font-size:11px">(' + esc(m['Trip'] || '') + (m['Completed At'] ? ' · ✓ 已完成' : '') + ')</span>';
-      missionsEl.appendChild(row);
-    });
-  }
-  return card;
-}
-
-async function submitUpdateAchievement(id, btn) {
-  const card = btn.closest('.form-card');
-  const title = card.querySelector('#ef-title').value.trim();
-  if (!title) return;
-  const linkedMissions = Array.from(card.querySelectorAll('#ef-missions input:checked')).map(cb => Number(cb.dataset.rowIndex));
-  btn.disabled = true; btn.textContent = '儲存中…';
-  try {
-    const result = await apiPost('updateAchievement', {
-      id, title,
-      emoji: card.querySelector('#ef-emoji').value.trim() || '🏅',
-      description: card.querySelector('#ef-desc').value.trim(),
-      tripTags: card.querySelector('#ef-trips').value.trim(),
-      linkedMissions
-    });
-    if (result.ok) {
-      editingAchievementId = null;
-      showToast('✓ 已更新成就');
-      await ensureAchievements(true);
-      render();
-    } else { showToast('錯誤: ' + (result.error || '請稍後再試')); btn.disabled = false; btn.textContent = '儲存變更'; }
-  } catch (err) { showToast('網路錯誤: ' + err.message); btn.disabled = false; btn.textContent = '儲存變更'; }
-}
-
-async function renderAchievements() {
-  const app = document.getElementById('app');
-  const trips = await ensureTrips();
-  const all = await ensureAchievements();
-
-  let filtered = all;
-  if (achievementsTripFilter.length) {
-    filtered = filtered.filter(a => {
-      const tags = String(a['Trip Tags'] || '').split(',').map(s => s.trim());
-      return achievementsTripFilter.some(t => tags.indexOf(t) >= 0);
-    });
-  }
-  if (achievementsSearch.trim()) {
-    const q = achievementsSearch.trim().toLowerCase();
-    filtered = filtered.filter(a => (a['Title'] || '').toLowerCase().indexOf(q) >= 0 || (a['Description'] || '').toLowerCase().indexOf(q) >= 0);
-  }
-
-  const wrap = document.createElement('div');
-  wrap.innerHTML =
-    '<input class="search-input" id="achv-search-input" placeholder="搜尋成就…" value="' + esc(achievementsSearch) + '" oninput="achievementsSearch=this.value; rerenderPreservingFocus()">' +
-    '<div class="chips" id="achv-trip-chips"></div>' +
-    '<button class="btn btn-teal btn-block" style="margin-bottom:14px" onclick="achievementFormOpen=!achievementFormOpen; render()">' + (achievementFormOpen ? '取消' : '+ 新增成就') + '</button>' +
-    '<div id="achv-form-slot"></div>' +
-    '<div id="achv-cards"></div>';
-  app.innerHTML = '';
-  app.appendChild(wrap);
-
-  const chipsEl = document.getElementById('achv-trip-chips');
-  trips.forEach(t => {
-    const active = achievementsTripFilter.indexOf(t['Trip']) >= 0;
-    const chip = document.createElement('div');
-    chip.className = 'chip' + (active ? ' active' : '');
-    chip.textContent = t['Location'] || t['Trip'];
-    chip.onclick = () => {
-      achievementsTripFilter = active ? achievementsTripFilter.filter(x => x !== t['Trip']) : achievementsTripFilter.concat([t['Trip']]);
-      render();
-    };
-    chipsEl.appendChild(chip);
-  });
-
-  if (achievementFormOpen) document.getElementById('achv-form-slot').appendChild(buildAchievementForm());
-  document.getElementById('achv-cards').appendChild(await buildAchievementCards(filtered));
-}
-
-function buildAchievementForm() {
-  const card = document.createElement('div');
-  card.className = 'form-card';
-  card.innerHTML =
-    '<div class="form-label">名稱</div><input class="form-input" id="af-title" placeholder="例如：市場尋寶王">' +
-    '<div class="form-label">表情符號</div><input class="form-input" id="af-emoji" placeholder="🏅" value="🏅">' +
-    '<div class="form-label">說明</div><textarea class="form-input" id="af-desc" placeholder="如何獲得這個成就？"></textarea>' +
-    '<div class="form-label">適用行程（逗號分隔，留空 = 不限）</div><input class="form-input" id="af-trips" placeholder="例如 Summer26,Winter2025">' +
-    '<button class="btn btn-coral btn-block" style="margin-top:12px" onclick="submitCreateAchievement(this)">建立成就</button>';
-  return card;
-}
-
-async function submitCreateAchievement(btn) {
-  const title = document.getElementById('af-title').value.trim();
-  if (!title) return;
-  btn.disabled = true; btn.textContent = '建立中…';
-  try {
-    const result = await apiPost('createAchievement', {
-      title,
-      emoji: document.getElementById('af-emoji').value.trim() || '🏅',
-      description: document.getElementById('af-desc').value.trim(),
-      tripTags: document.getElementById('af-trips').value.trim(),
-      status: 'Unpublished'
-    });
-    if (result.ok) {
-      achievementFormOpen = false;
-      showToast('✓ 已建立成就「' + title + '」');
-      await ensureAchievements(true);
-      render();
-    } else { showToast('錯誤: ' + (result.error || '請稍後再試')); btn.disabled = false; btn.textContent = '建立成就'; }
-  } catch (err) { showToast('網路錯誤: ' + err.message); btn.disabled = false; btn.textContent = '建立成就'; }
-}
-
-async function toggleAchievementStatus(id, currentStatus) {
-  const newStatus = currentStatus === 'Published' ? 'Unpublished' : 'Published';
-  try {
-    const result = await apiPost('updateAchievement', { id, status: newStatus });
-    if (result.ok) { showToast('✓ 已更新'); await ensureAchievements(true); render(); }
-    else showToast('錯誤: ' + (result.error || '請稍後再試'));
-  } catch (err) { showToast('網路錯誤: ' + err.message); }
-}
-
-async function awardAchievement(achievementId, awardUserId) {
-  try {
-    const result = await apiPost('awardAchievement', { achievementId, awardUserId });
-    if (result.ok) {
-      awardingAchievementId = null;
-      showToast('✓ 已頒發成就');
-      await ensureAchievements(true);
-      render();
-    } else showToast('錯誤: ' + (result.error || '請稍後再試'));
-  } catch (err) { showToast('網路錯誤: ' + err.message); }
-}
-
-// ── Packing List ──────────────────────────────────────────────────────────────
-
-function renderPackingCategoryList(container, items, checkedSet, editable) {
-  const byCategory = {};
-  items.forEach(it => { (byCategory[it['Category']] = byCategory[it['Category']] || []).push(it); });
-
-  Object.keys(byCategory).forEach(cat => {
-    const section = document.createElement('div');
-    section.className = 'pack-category';
-    const titleRow = document.createElement('div');
-    titleRow.className = 'pack-category-title';
-    titleRow.innerHTML = '<span>' + esc(cat) + '</span>';
-    section.appendChild(titleRow);
-
-    byCategory[cat].forEach(it => {
-      const isTagged = checkedSet ? checkedSet.has(it['ID']) : true;
-      const label = document.createElement('label');
-      label.className = 'pack-item' + (isTagged ? '' : ' untagged');
-      label.innerHTML =
-        '<input type="checkbox" ' + (isTagged ? 'checked' : '') + (editable ? '' : ' disabled') + '>' +
-        highlightMatch(it['Item'] || '', packingSearch) +
-        (it['Note'] ? ' <span style="color:var(--muted);font-size:11px">(' + esc(it['Note']) + ')</span>' : '');
-      if (editable) {
-        label.querySelector('input').onchange = (e) => {
-          if (e.target.checked) checkedSet.add(it['ID']); else checkedSet.delete(it['ID']);
-          label.classList.toggle('untagged', !e.target.checked);
-        };
-      }
-      section.appendChild(label);
-    });
-
-    if (editable) {
-      const addRow = document.createElement('div');
-      addRow.className = 'add-item-row';
-      addRow.innerHTML = '<input class="form-input" placeholder="新增' + esc(cat) + '項目…"><button class="btn btn-ghost btn-sm">新增</button>';
-      const input = addRow.querySelector('input');
-      addRow.querySelector('button').onclick = () => addPackingItem(cat, input.value.trim(), addRow.querySelector('button'));
-      section.appendChild(addRow);
-    }
-    container.appendChild(section);
-  });
-}
-
-async function renderPacking() {
-  const app = document.getElementById('app');
-  const trips = await ensureTrips();
-  const items = await ensurePacking();
-
-  if (!packingSelectedTrip && trips.length) packingSelectedTrip = trips[0]['Trip'];
-  if (packingSelectedTrip && !packingChecked) {
-    packingChecked = new Set(
-      items.filter(it => String(it['Trip Tags'] || '').split(',').map(s=>s.trim()).indexOf(packingSelectedTrip) >= 0).map(it => it['ID'])
-    );
-  }
-
-  const wrap = document.createElement('div');
-  wrap.innerHTML =
-    '<select class="form-select" style="margin-bottom:10px" onchange="packingSelectedTrip=this.value; packingChecked=null; render()">' +
-      trips.map(t => '<option value="' + esc(t['Trip']) + '"' + (t['Trip'] === packingSelectedTrip ? ' selected' : '') + '>' + esc(t['Location'] || t['Trip']) + '</option>').join('') +
-    '</select>' +
-    '<input class="search-input" id="pack-search-input" placeholder="搜尋物品…" value="' + esc(packingSearch) + '" oninput="packingSearch=this.value; rerenderPreservingFocus()">' +
-    '<div id="pack-list"></div>' +
-    '<button class="btn btn-coral btn-block" style="margin-top:6px" onclick="submitUpdatePackingTags(this)">更新打包清單</button>';
-  app.innerHTML = '';
-  app.appendChild(wrap);
-
-  const q = packingSearch.trim().toLowerCase();
-  const visible = q ? items.filter(it => (it['Item'] || '').toLowerCase().indexOf(q) >= 0) : items;
-  renderPackingCategoryList(document.getElementById('pack-list'), visible, packingChecked, true);
-}
-
-async function addPackingItem(category, item, btn) {
-  if (!item) return;
-  btn.disabled = true;
-  try {
-    const result = await apiPost('addPackingItem', { category, item });
-    if (result.ok) { showToast('✓ 已新增項目'); await ensurePacking(true); packingChecked = null; render(); }
-    else { showToast('錯誤: ' + (result.error || '請稍後再試')); btn.disabled = false; }
-  } catch (err) { showToast('網路錯誤: ' + err.message); btn.disabled = false; }
-}
-
-async function submitUpdatePackingTags(btn) {
-  if (!packingSelectedTrip) return;
-  btn.disabled = true; btn.textContent = '更新中…';
-  try {
-    const result = await apiPost('updatePackingTags', { trip: packingSelectedTrip, itemIds: Array.from(packingChecked) });
-    if (result.ok) { showToast('✓ 已更新「' + packingSelectedTrip + '」的打包清單'); await ensurePacking(true); }
-    else showToast('錯誤: ' + (result.error || '請稍後再試'));
-  } catch (err) { showToast('網路錯誤: ' + err.message); }
-  btn.disabled = false; btn.textContent = '更新打包清單';
-}
-
-// ── Tasks ─────────────────────────────────────────────────────────────────────
-
-async function renderTasks() {
-  const app = document.getElementById('app');
-  const trips = await ensureTrips();
-
-  const wrap = document.createElement('div');
-  wrap.innerHTML =
-    '<div class="chips" id="tasks-trip-chips"></div>' +
-    '<div class="chips">' +
-      [['open','未完成'], ['done','已完成'], ['allStatus','全部']].map(([k,label]) =>
-        '<div class="chip' + (tasksStatusFilter === k ? ' active' : '') + '" onclick="tasksStatusFilter=\'' + k + '\'; render()">' + label + '</div>'
-      ).join('') +
-    '</div>' +
-    '<div class="add-item-row" style="margin-bottom:14px">' +
-      '<input class="form-input" id="new-task-input" placeholder="新增待辦事項…">' +
-      '<button class="btn btn-teal btn-sm" onclick="submitCreateTask(this)">新增</button>' +
-    '</div>' +
-    '<div id="tasks-list"></div>';
-  app.innerHTML = '';
-  app.appendChild(wrap);
-
-  const chipsEl = document.getElementById('tasks-trip-chips');
-  const allChip = document.createElement('div');
-  allChip.className = 'chip' + (tasksTripFilter === 'all' ? ' active' : '');
-  allChip.textContent = '全部行程';
-  allChip.onclick = () => { tasksTripFilter = 'all'; tasksCache = null; render(); };
-  chipsEl.appendChild(allChip);
-  const generalChip = document.createElement('div');
-  generalChip.className = 'chip' + (tasksTripFilter === '' ? ' active' : '');
-  generalChip.textContent = '一般';
-  generalChip.onclick = () => { tasksTripFilter = ''; tasksCache = null; render(); };
-  chipsEl.appendChild(generalChip);
-  trips.forEach(t => {
-    const chip = document.createElement('div');
-    chip.className = 'chip' + (tasksTripFilter === t['Trip'] ? ' active' : '');
-    chip.textContent = t['Location'] || t['Trip'];
-    chip.onclick = () => { tasksTripFilter = t['Trip']; tasksCache = null; render(); };
-    chipsEl.appendChild(chip);
-  });
-
-  if (!tasksCache) {
-    const params = tasksTripFilter === 'all' ? {} : { trips: tasksTripFilter === '' ? '__general__' : tasksTripFilter };
-    const res = await apiGet('getTasks', params);
-    tasksCache = res.tasks || [];
-  }
-  let filtered = tasksCache;
-  if (tasksStatusFilter === 'open') filtered = filtered.filter(t => t['Status'] !== 'done');
-  else if (tasksStatusFilter === 'done') filtered = filtered.filter(t => t['Status'] === 'done');
-
-  const listEl = document.getElementById('tasks-list');
-  if (!filtered.length) { listEl.appendChild(elNoItems('✅ 沒有符合條件的待辦事項')); return; }
-  filtered.forEach(t => {
-    const row = document.createElement('div');
-    row.className = 'task-row' + (t['Status'] === 'done' ? ' done' : '');
-    row.innerHTML =
-      '<input type="checkbox" ' + (t['Status'] === 'done' ? 'checked' : '') + '>' +
-      '<span class="task-text">' + esc(t['Task']) + '</span>' +
-      (t['Trip'] ? '<span class="task-trip-tag">' + esc(t['Trip']) + '</span>' : '<span class="task-trip-tag">一般</span>');
-    row.querySelector('input').onchange = () => toggleTask(t['ID']);
-    listEl.appendChild(row);
-  });
-}
-
-async function submitCreateTask(btn) {
-  const input = document.getElementById('new-task-input');
-  const task = input.value.trim();
-  if (!task) return;
-  btn.disabled = true;
-  try {
-    const trip = (tasksTripFilter === 'all' || tasksTripFilter === undefined) ? '' : tasksTripFilter;
-    const result = await apiPost('createTask', { task, trip });
-    if (result.ok) { input.value = ''; showToast('✓ 已新增待辦'); tasksCache = null; homeCache = null; render(); }
-    else showToast('錯誤: ' + (result.error || '請稍後再試'));
-  } catch (err) { showToast('網路錯誤: ' + err.message); }
-  btn.disabled = false;
-}
-
-async function toggleTask(id) {
-  try {
-    const result = await apiPost('toggleTask', { id });
-    if (result.ok) { tasksCache = null; homeCache = null; render(); }
-    else showToast('錯誤: ' + (result.error || '請稍後再試'));
-  } catch (err) { showToast('網路錯誤: ' + err.message); }
-}
-
-// ── Shared small helpers ──────────────────────────────────────────────────────
-
-// Search inputs call this instead of render() directly — a full re-render on
-// every keystroke replaces the <input> DOM node and drops focus/cursor position,
-// which would make typing a search query nearly unusable (one character at a time).
-function rerenderPreservingFocus() {
-  const active = document.activeElement;
-  const id = active && active.id;
-  const selStart = active && active.selectionStart;
-  const selEnd = active && active.selectionEnd;
-  Promise.resolve(render()).then(() => {
-    if (!id) return;
-    const el = document.getElementById(id);
-    if (el && typeof el.focus === 'function') {
-      el.focus();
-      if (selStart != null && el.setSelectionRange) { try { el.setSelectionRange(selStart, selEnd); } catch (e) {} }
-    }
-  });
-}
-
-function elNoItems(text) {
-  const div = document.createElement('div');
-  div.className = 'no-items';
-  div.textContent = text;
-  return div;
-}
-
-function groupByDay(items) {
-  const groups = {}, order = [], undated = [];
-  items.forEach(it => {
-    const day = (it['Start Time'] || '').slice(0, 10);
-    if (!day) { undated.push(it); return; }
-    if (!groups[day]) { groups[day] = []; order.push(day); }
-    groups[day].push(it);
-  });
-  return { dayGroups: order.map(day => ({ day, items: groups[day] })), undated };
-}
-
-function tripColor(trip) {
-  let hash = 0;
-  for (let i = 0; i < trip.length; i++) hash = (hash * 31 + trip.charCodeAt(i)) >>> 0;
-  return TRIP_COLOR_PALETTE[hash % TRIP_COLOR_PALETTE.length];
-}
-
-function fmtTime(start, end) {
-  const s = String(start || ''), e = String(end || '');
-  const sDate = s.slice(0, 10), eDate = e.slice(0, 10);
-  const sTime = s.slice(11, 16), eTime = e.slice(11, 16);
-  if (!sTime) return '';
-  if (eDate && eDate !== sDate) return sDate.slice(5) + ' ' + sTime + ' → ' + eDate.slice(5) + ' ' + eTime;
-  return eTime ? sTime + ' – ' + eTime : sTime;
-}
-
-function todayStr() {
-  const d = new Date();
+/**
+ * Mock data + fetch/liff shims for local UI verification of organiser.html,
+ * without a live GAS deployment or LINE app. Only loaded when the page is
+ * opened with ?mock=1 (see organiser.html's bootstrap()). Never referenced
+ * otherwise — safe to leave committed.
+ *
+ * Mirrors the shapes returned by gas/Code.gs's _api* handlers closely enough
+ * to exercise every view; it is NOT a spec of the real API (see Code.gs for that).
+ */
+
+function mockToday() {
+  var d = new Date();
   return d.getFullYear() + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0');
 }
 
-function esc(str) {
-  return String(str || '')
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+function mockNow() {
+  var d = new Date();
+  return mockToday() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
 }
 
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2200);
+const DB = {
+  trips: [
+    { Trip: 'Summer26',    'Start Date': '2026/08/02', 'End Date': '2026/08/10', Timezone: 'Asia/Taipei', 'Daily Briefing Time': '07:00', Status: 'planning',  Location: '綠島小旅行', Cover: '', Agreement: '', Announcement: '歡迎來到綠島！請隨時注意天氣與潮汐資訊。' },
+    { Trip: 'Winter2025',  'Start Date': '2025/12/20', 'End Date': '2025/12/28', Timezone: 'Asia/Taipei', 'Daily Briefing Time': '07:00', Status: 'planning',  Location: '首爾冬遊', Cover: '', Agreement: '', Announcement: '' },
+    { Trip: 'Spring2027',  'Start Date': '',           'End Date': '',           Timezone: 'Asia/Taipei', 'Daily Briefing Time': '07:00', Status: 'planning',  Location: '北海道賞櫻', Cover: '', Agreement: '', Announcement: '' }
+  ],
+  participants: [
+    { 'LINE User ID': 'U_ORGANISER_MOCK', 'Display Name': 'Li (mock)', 'Picture URL': '', 'Custom Nickname': '' },
+    { 'LINE User ID': 'U_PARTNER',        'Display Name': '小美',       'Picture URL': '', 'Custom Nickname': '' },
+    { 'LINE User ID': 'U_FRIEND',         'Display Name': '阿凱',       'Picture URL': '', 'Custom Nickname': '' }
+  ],
+  tripParticipants: [
+    { Trip: 'Summer26',   'LINE User ID': 'U_ORGANISER_MOCK', 'Joined At': '2026/07/01 09:00', 'Agreement Signed At': '2026/07/01 09:05' },
+    { Trip: 'Summer26',   'LINE User ID': 'U_PARTNER',        'Joined At': '2026/07/01 10:00', 'Agreement Signed At': '2026/07/01 10:05' },
+    { Trip: 'Winter2025', 'LINE User ID': 'U_ORGANISER_MOCK', 'Joined At': '2025/11/01 09:00', 'Agreement Signed At': '2025/11/01 09:05' },
+    { Trip: 'Winter2025', 'LINE User ID': 'U_PARTNER',        'Joined At': '2025/11/01 10:00', 'Agreement Signed At': '2025/11/01 10:05' },
+    { Trip: 'Winter2025', 'LINE User ID': 'U_FRIEND',         'Joined At': '2025/11/02 09:00', 'Agreement Signed At': '2025/11/02 09:05' }
+  ],
+  // _rowIndex is globally unique across trips, matching the real shared Itinerary sheet.
+  itinerary: [
+    { _rowIndex: 2, Trip: 'Summer26', Item: '搭船前往綠島', Category: 'Transportation', Status: 'Booked', 'Start Time': '2026/08/02 09:00', 'End Time': '2026/08/02 10:30', Note: '記得暈船藥', 'Alt Group ID': '', 'Is Mission': false },
+    { _rowIndex: 3, Trip: 'Summer26', Item: '朝日溫泉',     Category: 'Attraction',     Status: 'Planned', 'Start Time': '2026/08/02 18:00', 'End Time': '2026/08/02 20:00', Note: '', 'Alt Group ID': '', 'Is Mission': false },
+    { _rowIndex: 4, Trip: 'Summer26', Item: '午餐 - 山海屋',     Category: 'Restaurant', Status: 'Planned', 'Start Time': '2026/08/02 12:00', 'End Time': '2026/08/02 13:00', Note: '海鮮飯', 'Alt Group ID': 'D1-LUNCH', 'Is Mission': false },
+    { _rowIndex: 5, Trip: 'Summer26', Item: '午餐 - 民宿家常菜', Category: 'Restaurant', Status: 'Planned', 'Start Time': '2026/08/02 12:00', 'End Time': '2026/08/02 13:00', Note: '', 'Alt Group ID': 'D1-LUNCH', 'Is Mission': false, 'Is Chosen': true },
+    { _rowIndex: 6, Trip: 'Summer26', Item: '找到一隻寄居蟹並拍照', Category: 'Mission', Status: 'Unstarted', 'Start Time': '2026/08/03 09:00', 'End Time': '', 'Mission Start Time': '2026/08/03 09:00', Note: '在柚子湖附近找找看', Reward: '50 點', 'LIFF URL': '', 'Is Mission': true, 'Triggered At': '', 'Completed At': '' },
+    { _rowIndex: 7, Trip: 'Summer26', Item: '環島腳踏車任務', Category: 'Mission', Status: 'Unstarted', 'Start Time': '', 'End Time': '', 'Mission Start Time': '', Note: '任何一天騎完環島公路都算', Reward: '100 點', 'LIFF URL': 'https://liff.line.me/2010468064-uKRXbFfR?mission=7', 'Is Mission': true, 'Is Multi-day': true, 'Triggered At': mockToday() + ' 08:00', 'Completed At': '' },
+    { _rowIndex: 8, Trip: 'Winter2025', Item: '明洞逛街', Category: 'Shopping', Status: 'Booked', 'Start Time': '2025/12/21 14:00', 'End Time': '2025/12/21 17:00', Note: '', 'Is Mission': false },
+    { _rowIndex: 9, Trip: 'Winter2025', Item: '點一杯韓國限定星巴克', Category: 'Mission', Status: 'Unstarted', 'Start Time': '2025/12/21 15:00', 'End Time': '', 'Mission Start Time': '2025/12/21 15:00', Note: '集滿印章送杯套', Reward: '貼紙一張', 'LIFF URL': 'https://liff.line.me/2010468064-uKRXbFfR?mission=9', 'Is Mission': true, 'Triggered At': '2025/12/21 15:00', 'Completed At': '2025/12/21 15:40', 'Completed By': 'U_PARTNER' }
+  ],
+  // 'Linked Missions' holds comma-separated itinerary _rowIndex values — same
+  // identity Send Now / NFC already key missions by. Whoever is 'Completed By'
+  // on every linked mission auto-earns the achievement (see mockCheckAchievementAutoAward).
+  achievements: [
+    { ID: 'ach-1', Title: '寄居蟹獵人', Emoji: '🦀', Description: '找到並拍下一隻寄居蟹',   'Trip Tags': 'Summer26',   Status: 'Published',   'Created At': '2026-07-01', 'Updated At': '2026-07-10', 'Linked Missions': '6' },
+    { ID: 'ach-2', Title: '環島騎士',   Emoji: '🚲', Description: '完成環島腳踏車任務',       'Trip Tags': 'Summer26',   Status: 'Unpublished', 'Created At': '2026-07-01', 'Updated At': '2026-07-05', 'Linked Missions': '7' },
+    { ID: 'ach-3', Title: '咖啡收藏家', Emoji: '☕', Description: '在首爾點過限定星巴克',     'Trip Tags': 'Winter2025', Status: 'Expired',     'Created At': '2025-11-01', 'Updated At': '2025-12-22', 'Linked Missions': '9' }
+  ],
+  achievementAwards: [
+    { 'Achievement ID': 'ach-3', 'LINE User ID': 'U_PARTNER',        'Awarded At': '2025/12/21 16:00' },
+    { 'Achievement ID': 'ach-3', 'LINE User ID': 'U_ORGANISER_MOCK', 'Awarded At': '2025/12/22 09:00' }
+  ],
+  packingItems: [
+    { ID: 'p-1', Category: '文件',     Item: '護照', Shared: false, 'Can Be Checked In': false, Note: '',               'Trip Tags': 'Summer26,Winter2025' },
+    { ID: 'p-2', Category: '文件',     Item: '簽證', Shared: false, 'Can Be Checked In': false, Note: '',               'Trip Tags': '' },
+    { ID: 'p-3', Category: '衣物',     Item: '泳衣', Shared: false, 'Can Be Checked In': false, Note: 'water activity', 'Trip Tags': 'Summer26' },
+    { ID: 'p-4', Category: '衣物',     Item: '大衣', Shared: false, 'Can Be Checked In': false, Note: 'cold weather',   'Trip Tags': 'Winter2025' },
+    { ID: 'p-5', Category: '潛水用品', Item: '面鏡', Shared: false, 'Can Be Checked In': true,  Note: 'Diving trip',    'Trip Tags': '' }
+  ],
+  tasks: [
+    { ID: 't-1', Trip: 'Summer26',   Task: '確認民宿訂金已付',           Status: 'open', 'Created At': '2026-07-10', 'Completed At': '' },
+    { ID: 't-2', Trip: '',           Task: '買 NFC 貼紙（潛水任務用）',   Status: 'open', 'Created At': '2026-07-09', 'Completed At': '' },
+    { ID: 't-3', Trip: 'Winter2025', Task: '寄送行程總結給小美',         Status: 'done', 'Created At': '2025-12-29', 'Completed At': '2025-12-30' }
+  ],
+  packingChecks: [
+    // Trip, LINE User ID, Packing Item ID, Checked At — per-user check-off (F7)
+    { Trip: 'Summer26', 'LINE User ID': 'U_ORGANISER_MOCK', 'Packing Item ID': 'p-1', 'Checked At': '2026/07/15 10:00' }
+  ]
+};
+
+function mockMissionStatus(it) {
+  if (it['Completed At']) return 'completed';
+  if (it['Triggered At']) return 'inProgress';
+  var start = String(it['Start Time'] || '');
+  if (!it['Is Multi-day'] && start && start.slice(0, 10) < mockToday()) return 'expired';
+  return 'new';
 }
 
-function copyText(text, btn) {
-  const done = () => {
-    showToast('✓ 已複製連結');
-    if (btn) { const old = btn.textContent; btn.textContent = '已複製 ✓'; setTimeout(() => btn.textContent = old, 1500); }
+function mockParseLinkedMissions(raw) {
+  return String(raw || '').split(',').map(function(s) { return parseInt(s.trim(), 10); }).filter(function(n) { return !isNaN(n); });
+}
+
+// Mirrors gas/Code.gs's _checkAchievementAutoAward: whoever ends up
+// 'Completed By' on every one of an achievement's linked missions earns it.
+function mockCheckAchievementAutoAward(completedRowIndex, userId) {
+  const achievements = DB.achievements.filter(a => mockParseLinkedMissions(a['Linked Missions']).indexOf(completedRowIndex) >= 0);
+  if (!achievements.length) return [];
+  const itinByRow = {};
+  DB.itinerary.forEach(it => itinByRow[it._rowIndex] = it);
+  const newlyAwarded = [];
+  achievements.forEach(a => {
+    const linked = mockParseLinkedMissions(a['Linked Missions']);
+    const allDone = linked.length > 0 && linked.every(rIdx => {
+      const it = itinByRow[rIdx];
+      return it && it['Completed At'] && String(it['Completed By'] || '') === userId;
+    });
+    if (!allDone) return;
+    const already = DB.achievementAwards.some(aw => aw['Achievement ID'] === a.ID && aw['LINE User ID'] === userId);
+    if (already) return;
+    DB.achievementAwards.push({ 'Achievement ID': a.ID, 'LINE User ID': userId, 'Awarded At': mockNow() });
+    newlyAwarded.push({ id: a.ID, title: a.Title, emoji: a.Emoji });
+  });
+  return newlyAwarded;
+}
+
+function mockRoster() {
+  const tripsByUser = {};
+  DB.tripParticipants.forEach(l => (tripsByUser[l['LINE User ID']] = tripsByUser[l['LINE User ID']] || []).push(l['Trip']));
+  const titleById = {};
+  DB.achievements.forEach(a => titleById[a.ID] = a.Title);
+  const achByUser = {};
+  DB.achievementAwards.forEach(a => {
+    const t = titleById[a['Achievement ID']];
+    if (t) (achByUser[a['LINE User ID']] = achByUser[a['LINE User ID']] || []).push(t);
+  });
+  return DB.participants.map(p => ({
+    userId: p['LINE User ID'],
+    displayName: p['Custom Nickname'] || p['Display Name'],
+    pictureUrl: p['Picture URL'],
+    trips: tripsByUser[p['LINE User ID']] || [],
+    achievements: achByUser[p['LINE User ID']] || [],
+    isMe: p['LINE User ID'] === 'U_ORGANISER_MOCK',
+    sharedTripCount: 0
+  }));
+}
+
+function handleMockGet(action, params) {
+  if (action === 'getOrganizerHome') {
+    const today = mockToday();
+    const upcoming = DB.trips.filter(t => !t['End Date'] || t['End Date'] >= today)
+      .sort((a, b) => String(a['Start Date'] || '9999').localeCompare(String(b['Start Date'] || '9999'))).slice(0, 3);
+    const openTaskCount = DB.tasks.filter(t => t.Status !== 'done').length;
+    return {
+      upcomingTrips: upcoming,
+      openTaskCount,
+      nextTrip: upcoming[0] ? upcoming[0].Trip : null,
+      countdown: upcoming[0] && upcoming[0]['Start Date'] ? Math.round((new Date(upcoming[0]['Start Date'].replace(/\//g,'-')) - new Date(today.replace(/\//g,'-'))) / 86400000) : null,
+      liffBaseUrl: 'https://liff.line.me/2010468064-uKRXbFfR'
+    };
+  }
+  if (action === 'getTrips') return { trips: DB.trips, activeTrip: 'Summer26' };
+  if (action === 'getRoster') return { roster: mockRoster() };
+  if (action === 'getTimeline') {
+    const items = DB.itinerary.filter(it => it.Trip === params.trip);
+    items.sort((a, b) => String(a['Start Time'] || '').localeCompare(String(b['Start Time'] || '')));
+    return { trip: params.trip, items };
+  }
+  if (action === 'getOrganizerView') {
+    const rows = DB.itinerary.filter(it => it.Trip === params.trip);
+    const missions = rows.filter(it => it['Is Mission']);
+    const altMap = {};
+    rows.forEach(it => { const id = it['Alt Group ID']; if (id) (altMap[id] = altMap[id] || []).push(it); });
+    const altGroups = Object.keys(altMap).filter(k => altMap[k].length >= 2).map(k => ({ id: k, members: altMap[k] }));
+    return { trip: params.trip, today: mockToday(), missions, altGroups };
+  }
+  if (action === 'getOrganizerMissions') {
+    const tripFilter = (params.trips || '').split(',').map(s => s.trim()).filter(Boolean);
+    const missions = DB.itinerary.filter(it => it['Is Mission'] && (!tripFilter.length || tripFilter.indexOf(it.Trip) >= 0))
+      .map(it => Object.assign({}, it, { _status: mockMissionStatus(it) }));
+    return { missions };
+  }
+  if (action === 'getAchievementsAdmin') {
+    const nameById = {};
+    DB.participants.forEach(p => nameById[p['LINE User ID']] = p['Custom Nickname'] || p['Display Name']);
+    const membersByAch = {};
+    DB.achievementAwards.forEach(a => (membersByAch[a['Achievement ID']] = membersByAch[a['Achievement ID']] || []).push({ userId: a['LINE User ID'], displayName: nameById[a['LINE User ID']] || a['LINE User ID'], awardedAt: a['Awarded At'] }));
+    const itinByRow = {};
+    DB.itinerary.forEach(it => itinByRow[it._rowIndex] = it);
+    const list = DB.achievements.map(a => Object.assign({}, a, {
+      members: membersByAch[a.ID] || [],
+      linkedMissionRows: mockParseLinkedMissions(a['Linked Missions']).map(r => itinByRow[r]).filter(Boolean)
+    }));
+    list.sort((a, b) => String(b['Updated At'] || '').localeCompare(String(a['Updated At'] || '')));
+    return { achievements: list };
+  }
+  if (action === 'getPackingAdmin') return { items: DB.packingItems };
+  if (action === 'getMyPacking') {
+    const trip = params.trip;
+    const tagged = DB.packingItems.filter(it => String(it['Trip Tags'] || '').split(',').map(s => s.trim()).indexOf(trip) >= 0);
+    const items = tagged.length ? tagged : DB.packingItems;
+    const checkedSet = new Set(DB.packingChecks.filter(c => c['LINE User ID'] === params.userId && c.Trip === trip).map(c => c['Packing Item ID']));
+    return { trip, items: items.map(it => ({ ID: it.ID, Category: it.Category, Item: it.Item, Note: it.Note || '', Shared: it.Shared, checked: checkedSet.has(it.ID) })) };
+  }
+  if (action === 'getTasks') {
+    const raw = String(params.trips || '').trim();
+    let tasks = DB.tasks;
+    if (raw === '__general__') tasks = tasks.filter(t => !t.Trip);
+    else if (raw) { const f = raw.split(',').map(s => s.trim()).filter(Boolean); tasks = tasks.filter(t => f.indexOf(t.Trip) >= 0); }
+    return { tasks: tasks.slice().sort((a, b) => String(b['Created At'] || '').localeCompare(String(a['Created At'] || ''))) };
+  }
+  if (action === 'getMyTrips') {
+    const joined = DB.tripParticipants.filter(l => l['LINE User ID'] === params.userId);
+    const trips = DB.trips.filter(t => joined.some(j => j.Trip === t.Trip)).map(t => {
+      const j = joined.find(x => x.Trip === t.Trip);
+      return Object.assign({}, t, { 'Joined At': j['Joined At'] || '', 'Agreement Signed At': j['Agreement Signed At'] || '' });
+    });
+    return { trips };
+  }
+  if (action === 'getMyMissions') {
+    const joinedTrips = DB.tripParticipants.filter(l => l['LINE User ID'] === params.userId).map(l => l.Trip);
+    const missions = DB.itinerary.filter(it => it['Is Mission'] && joinedTrips.indexOf(it.Trip) >= 0)
+      .map(it => Object.assign({}, it, { _status: mockMissionStatus(it) }));
+    return { missions };
+  }
+  if (action === 'getTripAgreement') {
+    const trip = DB.trips.find(t => t.Trip === params.trip);
+    if (!trip) return { error: 'notFound' };
+    return {
+      trip: params.trip, tripName: params.trip,
+      clauses: ['準時集合，不無故遲到', '尊重其他團員的意願與步調', '共同分擔行程中的雜務與決定', '遇到突發狀況會冷靜溝通，一起解決']
+    };
+  }
+  if (action === 'getAchievements') {
+    const joinedTrips = DB.tripParticipants.filter(l => l['LINE User ID'] === params.userId).map(l => l.Trip);
+    const awardedAtById = {};
+    DB.achievementAwards.filter(a => a['LINE User ID'] === params.userId).forEach(a => awardedAtById[a['Achievement ID']] = a['Awarded At']);
+    const itinByRow = {};
+    DB.itinerary.forEach(it => itinByRow[it._rowIndex] = it);
+
+    const visible = DB.achievements.filter(a => {
+      if (awardedAtById[a.ID]) return true;
+      if (a.Status !== 'Published') return false;
+      const tags = String(a['Trip Tags'] || '').split(',').map(s => s.trim()).filter(Boolean);
+      return !tags.length || tags.some(t => joinedTrips.indexOf(t) >= 0);
+    });
+    const result = visible.map(a => {
+      const linked = mockParseLinkedMissions(a['Linked Missions']);
+      const doneByMe = linked.filter(r => { const it = itinByRow[r]; return it && it['Completed At'] && String(it['Completed By'] || '') === params.userId; }).length;
+      return {
+        id: a.ID, title: a.Title, emoji: a.Emoji || '🏅', description: a.Description || '',
+        earned: !!awardedAtById[a.ID], awardedAt: awardedAtById[a.ID] || '',
+        missionTotal: linked.length, missionDone: doneByMe
+      };
+    });
+    result.sort((a, b) => { if (a.earned !== b.earned) return a.earned ? -1 : 1; return String(b.awardedAt || '').localeCompare(String(a.awardedAt || '')); });
+    return { achievements: result };
+  }
+  return { error: 'Unknown mock action: ' + action };
+}
+
+function handleMockPost(action, body) {
+  if (action === 'register') {
+    if (!DB.participants.some(p => p['LINE User ID'] === body.userId)) {
+      DB.participants.push({ 'LINE User ID': body.userId, 'Display Name': body.displayName || body.userId, 'Picture URL': body.pictureUrl || '', 'Custom Nickname': '' });
+    }
+    return { ok: true };
+  }
+  if (action === 'joinTrip') {
+    const trip = DB.trips.find(t => t.Trip === body.trip);
+    if (!trip) return { error: 'notFound' };
+    if (!DB.participants.some(p => p['LINE User ID'] === body.userId)) {
+      DB.participants.push({ 'LINE User ID': body.userId, 'Display Name': body.displayName || body.userId, 'Picture URL': body.pictureUrl || '', 'Custom Nickname': '' });
+    }
+    const existing = DB.tripParticipants.find(l => l.Trip === body.trip && l['LINE User ID'] === body.userId);
+    if (existing) return { ok: true, alreadyJoined: true, agreementSignedAt: existing['Agreement Signed At'] || '' };
+    DB.tripParticipants.push({ Trip: body.trip, 'LINE User ID': body.userId, 'Joined At': mockNow(), 'Agreement Signed At': '' });
+    return { ok: true, alreadyJoined: false, agreementSignedAt: '' };
+  }
+  if (action === 'signAgreement') {
+    const checked = Number(body.checkedCount) || 0, total = Number(body.totalCount) || 0;
+    if (!total || checked / total < 0.7) return { error: 'notEnoughChecked' };
+    const link = DB.tripParticipants.find(l => l.Trip === body.trip && l['LINE User ID'] === body.userId);
+    if (!link) return { error: 'notJoined' };
+    link['Agreement Signed At'] = mockNow();
+    return { ok: true, signedAt: link['Agreement Signed At'] };
+  }
+  if (action === 'updateNickname') {
+    const p = DB.participants.find(x => x['LINE User ID'] === body.userId);
+    if (!p) return { error: 'notFound' };
+    p['Custom Nickname'] = body.nickname;
+    return { ok: true, nickname: body.nickname };
+  }
+  if (action === 'completeMission') {
+    const item = DB.itinerary.find(it => it._rowIndex === Number(body.rowIndex));
+    if (!item) return { error: 'rowIndex and userId are required' };
+    const nowStr = mockNow();
+    item['Completed At'] = nowStr;
+    item['Completed By'] = body.userId;
+    const awardedAchievements = mockCheckAchievementAutoAward(item._rowIndex, body.userId);
+    return { ok: true, completedAt: nowStr, awardedAchievements };
+  }
+  if (action === 'sendNow') {
+    const item = DB.itinerary.find(it => it._rowIndex === Number(body.rowIndex));
+    if (!item) return { error: 'Row out of range' };
+    item['Triggered At'] = mockNow();
+    return { ok: true, triggeredAt: item['Triggered At'] };
+  }
+  if (action === 'chooseRestaurant') {
+    DB.itinerary.forEach(it => { if (it['Alt Group ID'] === body.altGroupId) it['Is Chosen'] = it._rowIndex === Number(body.rowIndex); });
+    return { ok: true };
+  }
+  if (action === 'createTrip') {
+    if (DB.trips.some(t => t.Trip === body.trip)) return { error: 'A trip named "' + body.trip + '" already exists' };
+    DB.trips.push({ Trip: body.trip, 'Start Date': body.startDate || '', 'End Date': body.endDate || '', Timezone: 'Asia/Taipei', 'Daily Briefing Time': '07:00', Status: 'planning', Location: body.location || '', Cover: '', Agreement: '', Announcement: body.announcement || '' });
+    return { ok: true, trip: body.trip };
+  }
+  if (action === 'togglePackingItem') {
+    const idx = DB.packingChecks.findIndex(c => c.Trip === body.trip && c['LINE User ID'] === body.userId && c['Packing Item ID'] === body.itemId);
+    const want = body.checked === true || body.checked === 'true';
+    if (want && idx < 0) DB.packingChecks.push({ Trip: body.trip, 'LINE User ID': body.userId, 'Packing Item ID': body.itemId, 'Checked At': mockNow() });
+    if (!want && idx >= 0) DB.packingChecks.splice(idx, 1);
+    return { ok: true, checked: want };
+  }
+  if (action === 'updateTrip') {
+    const t = DB.trips.find(x => x.Trip === body.trip);
+    if (!t) return { error: 'Trip not found' };
+    const cols = { location: 'Location', startDate: 'Start Date', endDate: 'End Date', announcement: 'Announcement', cover: 'Cover', agreement: 'Agreement', status: 'Status', briefingTime: 'Daily Briefing Time', timezone: 'Timezone' };
+    Object.keys(cols).forEach(k => { if (body[k] !== undefined) t[cols[k]] = body[k]; });
+    return { ok: true, trip: body.trip };
+  }
+  if (action === 'updateItem') {
+    const it = DB.itinerary.find(x => x._rowIndex === Number(body.rowIndex));
+    if (!it) return { error: 'Row out of range' };
+    const cols = { item: 'Item', category: 'Category', status: 'Status', startTime: 'Start Time', endTime: 'End Time', missionStartTime: 'Mission Start Time', note: 'Note', reward: 'Reward', area: 'Area', subArea: 'Sub Area', openHour: 'Open Hour', price: 'Price', currency: 'Currency', address: 'Address', phone: 'Phone', gmPage: 'GM Page', website: 'Website', closedOn: 'Closed on', cover: 'Cover', liffUrl: 'LIFF URL' };
+    Object.keys(cols).forEach(k => { if (body[k] !== undefined) it[cols[k]] = body[k]; });
+    return { ok: true, rowIndex: body.rowIndex };
+  }
+  if (action === 'createTask') {
+    const id = 't-' + (DB.tasks.length + 1) + '-' + Math.floor(Math.random() * 1000);
+    DB.tasks.push({ ID: id, Trip: body.trip || '', Task: body.task, Status: 'open', 'Created At': mockToday(), 'Completed At': '' });
+    return { ok: true, id };
+  }
+  if (action === 'toggleTask') {
+    const t = DB.tasks.find(x => x.ID === body.id);
+    if (!t) return { error: 'notFound' };
+    t.Status = t.Status === 'done' ? 'open' : 'done';
+    t['Completed At'] = t.Status === 'done' ? mockToday() : '';
+    return { ok: true, status: t.Status };
+  }
+  if (action === 'createAchievement') {
+    const id = 'ach-' + (DB.achievements.length + 1) + '-' + Math.floor(Math.random() * 1000);
+    const now = mockNow();
+    const linkedMissions = Array.isArray(body.linkedMissions) ? body.linkedMissions.join(',') : (body.linkedMissions || '');
+    DB.achievements.push({ ID: id, Title: body.title, Emoji: body.emoji || '🏅', Description: body.description || '', 'Trip Tags': body.tripTags || '', Status: body.status || 'Unpublished', 'Created At': now, 'Updated At': now, 'Linked Missions': linkedMissions });
+    return { ok: true, id };
+  }
+  if (action === 'updateAchievement') {
+    const a = DB.achievements.find(x => x.ID === body.id);
+    if (!a) return { error: 'notFound' };
+    ['title', 'emoji', 'description', 'tripTags', 'status'].forEach(key => {
+      if (body[key] === undefined) return;
+      const col = { title: 'Title', emoji: 'Emoji', description: 'Description', tripTags: 'Trip Tags', status: 'Status' }[key];
+      a[col] = body[key];
+    });
+    if (body.linkedMissions !== undefined) {
+      a['Linked Missions'] = Array.isArray(body.linkedMissions) ? body.linkedMissions.join(',') : body.linkedMissions;
+    }
+    a['Updated At'] = mockNow();
+    return { ok: true };
+  }
+  if (action === 'awardAchievement') {
+    const already = DB.achievementAwards.some(x => x['Achievement ID'] === body.achievementId && x['LINE User ID'] === body.awardUserId);
+    if (already) return { ok: true, alreadyAwarded: true };
+    DB.achievementAwards.push({ 'Achievement ID': body.achievementId, 'LINE User ID': body.awardUserId, 'Awarded At': mockNow() });
+    return { ok: true };
+  }
+  if (action === 'addPackingItem') {
+    const id = 'p-' + (DB.packingItems.length + 1) + '-' + Math.floor(Math.random() * 1000);
+    DB.packingItems.push({ ID: id, Category: body.category, Item: body.item, Shared: !!body.shared, 'Can Be Checked In': !!body.canBeCheckedIn, Note: body.note || '', 'Trip Tags': '' });
+    return { ok: true, id };
+  }
+  if (action === 'updatePackingTags') {
+    const itemIds = body.itemIds || [];
+    DB.packingItems.forEach(it => {
+      const tags = String(it['Trip Tags'] || '').split(',').map(s => s.trim()).filter(Boolean);
+      const should = itemIds.indexOf(it.ID) >= 0;
+      const has = tags.indexOf(body.trip) >= 0;
+      if (should && !has) tags.push(body.trip);
+      if (!should && has) { const i = tags.indexOf(body.trip); tags.splice(i, 1); }
+      it['Trip Tags'] = tags.join(',');
+    });
+    return { ok: true };
+  }
+  return { error: 'Unknown mock action: ' + action };
+}
+
+function installMockShims() {
+  window.liff = {
+    init: () => Promise.resolve(),
+    isLoggedIn: () => true,
+    getProfile: () => Promise.resolve({ userId: 'U_ORGANISER_MOCK', displayName: 'Li (mock)' }),
+    getIDToken: () => 'mock-id-token' // fetch is intercepted, so never verified
   };
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
-  } else { fallbackCopy(text, done); }
+
+  const realFetch = window.fetch.bind(window);
+  window.fetch = function(url, opts) {
+    if (typeof url !== 'string' || url.indexOf(CONFIG.gasUrl) !== 0) return realFetch(url, opts);
+
+    return new Promise(resolve => {
+      setTimeout(() => {
+        let payload;
+        try {
+          if (!opts || !opts.method || opts.method === 'GET') {
+            const qs = url.split('?')[1] || '';
+            const params = Object.fromEntries(new URLSearchParams(qs));
+            payload = handleMockGet(params.action, params);
+          } else {
+            const body = JSON.parse(opts.body || '{}');
+            payload = handleMockPost(body.action, body);
+          }
+        } catch (err) {
+          payload = { error: 'Mock harness error: ' + err.message };
+        }
+        resolve({ ok: true, status: 200, json: () => Promise.resolve(payload) });
+      }, 120);
+    });
+  };
 }
-
-function fallbackCopy(text, done) {
-  const ta = document.createElement('textarea');
-  ta.value = text; document.body.appendChild(ta); ta.select();
-  try { document.execCommand('copy'); done(); } catch (e) {}
-  document.body.removeChild(ta);
-}
-
-// ── Mock mode (?mock=1) — local verification without a live GAS deployment.
-// See mock/fixtures.js. Never active unless the URL explicitly opts in.
-const MOCK_MODE = new URLSearchParams(location.search).get('mock') === '1';
-
-function bootstrap() {
-  if (!MOCK_MODE) { init(); return; }
-  const s = document.createElement('script');
-  s.src = '../mock/fixtures.js';
-  s.onload = () => { window.installMockShims(); init(); };
-  s.onerror = () => { document.getElementById('loading').innerHTML = '<div class="no-items">找不到 mock/fixtures.js</div>'; };
-  document.head.appendChild(s);
-}
-
-bootstrap();
-</script>
-</body>
-</html>
