@@ -163,6 +163,7 @@
       width: 26px; height: 26px; border-radius: 50%; background: var(--deep); color: #fff;
       font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     }
+    .day-circle-undated { background: var(--border); color: var(--muted); }
     .day-label { font-size: 13px; font-weight: 700; color: var(--text); flex: 1; }
     .day-toggle { font-size: 11px; color: var(--muted); }
     .day-items.collapsed { display: none; }
@@ -239,9 +240,20 @@
     .profile-header { text-align: center; padding: 20px 0 24px; }
     .profile-avatar { width: 84px; height: 84px; border-radius: 50%; object-fit: cover; background: var(--border); margin: 0 auto 10px; }
     .profile-name { font-size: 18px; font-weight: 700; }
+
+    /* ── Toast (ported from organiser.html — LINE suppresses alert()) ──── */
+    .toast {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: var(--deep); color: #fff; font-size: 13px; font-weight: 700;
+      padding: 10px 18px; border-radius: 999px; opacity: 0; pointer-events: none;
+      transition: opacity 0.2s; z-index: 50; max-width: 90%; text-align: center;
+    }
+    .toast.show { opacity: 1; }
   </style>
 </head>
 <body>
+
+<div id="toast" class="toast"></div>
 
 <div id="header">
   <div id="brand">
@@ -299,7 +311,7 @@ const TRIP_TABS = [
 
 const PACKING_MASTER = [
   { cat: '文件', items: ['護照', '住宿預約確認紀錄', '簽證', '入境登記', '電子機票', '登機證', '車程預訂'] },
-  { cat: '衣物', items: ['T-shirt', '襯衫', '內衣褲', '長褲', '短褲', '裙子', '外套', '大衣', '泳衣', '泳帽', '泳鏡', '帽子', '手套', '圍巾', '鞋子', '室內拖', '室外脫', '太陽眼鏡', '毛巾衣'] },
+  { cat: '衣物', items: ['T-shirt', '襯衫', '內衣褲', '長褲', '短褲', '裙子', '外套', '大衣', '泳衣', '泳帽', '泳鏡', '帽子', '手套', '圍巾', '鞋子', '室內拖', '室外拖', '太陽眼鏡', '毛巾衣'] },
   { cat: '電器', items: ['平板', '平板充電器', '手機', '手機充電器', '筆電', '筆電充電器', '行充', '耳機', '行李秤', '電池', '轉接頭'] },
   { cat: '沐浴用品', items: ['洗髮乳', '潤髮乳', '洗面乳', '面膜', '化妝水', '面霜', '沐浴乳', '乳液', '浴巾', '牙刷', '牙膏', '牙線', '護唇膏', '棉花棒'] },
   { cat: '潛水用品', items: ['濕衣', '面鏡', '套鞋', '蛙鞋', '潛水電腦表', '潛水電腦表充電器', '潛水手電筒'] },
@@ -426,6 +438,16 @@ function handleTokenExpiry(result) {
     return true;
   }
   return false;
+}
+
+// LINE's in-app browser silently suppresses alert(), so failed actions vanished
+// with no feedback (audit B5). Route all user-facing messages through a toast.
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2600);
 }
 
 async function apiGet(action, params) {
@@ -618,7 +640,7 @@ async function obSubmitPasscode() {
 
   const result = await apiPost('joinTrip', { trip });
   if (result.error === 'notFound') { ob.error = true; renderOnboarding(); return; }
-  if (result.error) { alert('錯誤: ' + result.error); return; }
+  if (result.error) { showToast('錯誤: ' + result.error); return; }
 
   ob.trip = trip;
   ob.error = '';
@@ -645,7 +667,7 @@ async function obSubmitNickname() {
   const nickname = document.getElementById('ob-nickname').value.trim();
   if (!nickname) return;
   const result = await apiPost('updateNickname', { nickname });
-  if (result.error) { alert('錯誤: ' + result.error); return; }
+  if (result.error) { showToast('錯誤: ' + result.error); return; }
   currentUser.displayName = nickname;
   document.getElementById('drawer-name').textContent = nickname;
   obLoadAgreement();
@@ -653,7 +675,7 @@ async function obSubmitNickname() {
 
 async function obLoadAgreement() {
   const res = await apiGet('getTripAgreement', { trip: ob.trip });
-  if (res.error) { alert('找不到這個行程的旅行公約設定'); return; }
+  if (res.error) { showToast('找不到這個行程的旅行公約設定'); return; }
   ob.clauses = (res.clauses || []).map(text => ({ text, checked: false }));
   ob.stage = 4;
   ob.error = '';
@@ -678,7 +700,7 @@ async function obSignAgreement() {
   const checked = ob.clauses.filter(c => c.checked).length;
   const result = await apiPost('signAgreement', { trip: ob.trip, checkedCount: checked, totalCount: total });
   if (result.error === 'notEnoughChecked') { ob.error = true; renderOnboarding(); return; }
-  if (result.error) { alert('錯誤: ' + result.error); return; }
+  if (result.error) { showToast('錯誤: ' + result.error); return; }
 
   await refreshMyTrips();
   navigateTo('home');
@@ -698,8 +720,16 @@ async function renderHome() {
   }
 
   if (!homeSelectedTrip || !myTrips.some(t => t['Trip'] === homeSelectedTrip)) {
-    const withDates = myTrips.filter(t => t['Start Date']).sort((a, b) => String(a['Start Date']).localeCompare(String(b['Start Date'])));
-    homeSelectedTrip = (withDates[0] || myTrips[0])['Trip'];
+    const dated = myTrips.filter(t => t['Start Date']);
+    // Prefer trips that haven't ended yet (End Date today or later), soonest
+    // start first; otherwise fall back to the most recently finished trip (B1).
+    const active = dated
+      .filter(t => daysUntil(t['End Date'] || t['Start Date']) >= 0)
+      .sort((a, b) => daysUntil(a['Start Date']) - daysUntil(b['Start Date']));
+    const recentPast = dated
+      .slice()
+      .sort((a, b) => daysUntil(b['Start Date']) - daysUntil(a['Start Date']));
+    homeSelectedTrip = (active[0] || recentPast[0] || myTrips[0])['Trip'];
   }
   const trip = myTrips.find(t => t['Trip'] === homeSelectedTrip);
   const items = await ensureTripItems(homeSelectedTrip);
@@ -720,7 +750,13 @@ async function renderHome() {
     '<div class="hero-card">' +
       '<div class="hero-trip-name">' + esc(trip['Location'] || trip['Trip']) + '</div>' +
       '<div class="hero-meta">' + esc(trip['Start Date'] || '') + (trip['End Date'] ? ' → ' + esc(trip['End Date']) : '') + '</div>' +
-      (countdown != null ? '<div class="countdown-badge">' + (countdown > 0 ? '倒數 ' + countdown + ' 天' : (countdown === 0 ? '就是今天！' : '進行中')) + '</div>' : '') +
+      (countdown != null ? '<div class="countdown-badge">' + (
+          countdown > 0 ? '倒數 ' + countdown + ' 天'
+          : countdown === 0 ? '就是今天！'
+          // Start date passed — "進行中" only while today is still within the
+          // trip; after the end date it's "已結束", not ongoing (B2).
+          : (daysUntil(trip['End Date'] || trip['Start Date']) >= 0 ? '進行中' : '已結束')
+        ) + '</div>' : '') +
     '</div>' +
     '<div class="section-title">✨ 精選行程</div>' +
     '<div id="home-highlights"></div>' +
@@ -831,11 +867,15 @@ async function renderTripDetail() {
     contentEl.innerHTML = '';
     const groups = groupByDay(items);
     if (!groups.length) { contentEl.innerHTML = '<div class="no-items">尚無行程資料</div>'; return; }
-    groups.forEach((g, i) => {
+    let dayNum = 0;
+    groups.forEach((g) => {
       const dayWrap = document.createElement('div');
+      const circle = g.dated
+        ? '<div class="day-circle">' + (++dayNum) + '</div>'
+        : '<div class="day-circle day-circle-undated">•</div>';
       dayWrap.innerHTML =
         '<div class="day-header" onclick="this.nextElementSibling.classList.toggle(\'collapsed\')">' +
-          '<div class="day-circle">' + (i + 1) + '</div>' +
+          circle +
           '<div class="day-label">' + esc(g.day) + '</div>' +
           '<div class="day-toggle">▾</div>' +
         '</div>' +
@@ -996,7 +1036,7 @@ async function profileSubmitNickname() {
   const nickname = document.getElementById('profile-nickname').value.trim();
   if (!nickname) return;
   const result = await apiPost('updateNickname', { nickname });
-  if (result.error) { alert('錯誤: ' + result.error); return; }
+  if (result.error) { showToast('錯誤: ' + result.error); return; }
   currentUser.displayName = nickname;
   document.getElementById('drawer-name').textContent = nickname;
   rosterCache = null;
@@ -1101,16 +1141,16 @@ async function completeMission(rowIndex, btn) {
       if (currentTrip) tripItemsCache[currentTrip] = null;
       if (result.awardedAchievements && result.awardedAchievements.length) {
         achievementsCache = null;
-        alert('🎉 解鎖成就: ' + result.awardedAchievements.map(a => (a.emoji || '🏅') + ' ' + a.title).join('、'));
+        showToast('🎉 解鎖成就: ' + result.awardedAchievements.map(a => (a.emoji || '🏅') + ' ' + a.title).join('、'));
       }
       render();
     } else {
       btn.disabled = false; btn.textContent = '完成任務';
-      alert('錯誤: ' + (result.error || '請稍後再試'));
+      showToast('錯誤: ' + (result.error || '請稍後再試'));
     }
   } catch (err) {
     btn.disabled = false; btn.textContent = '完成任務';
-    alert('網路錯誤: ' + err.message);
+    showToast('網路錯誤: ' + err.message);
   }
 }
 
@@ -1125,24 +1165,30 @@ async function chooseRestaurant(rowIndex, altGroupId, btn) {
       render();
     } else {
       btn.disabled = false; btn.textContent = '選這家';
-      alert('錯誤: ' + (result.error || '請稍後再試'));
+      showToast('錯誤: ' + (result.error || '請稍後再試'));
     }
   } catch (err) {
     btn.disabled = false; btn.textContent = '選這家';
-    alert('網路錯誤: ' + err.message);
+    showToast('網路錯誤: ' + err.message);
   }
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
 function groupByDay(items) {
-  const groups = {}, order = [];
+  const groups = {};
   items.forEach(it => {
     const day = (it['Start Time'] || '').slice(0, 10) || '未定日期';
-    if (!groups[day]) { groups[day] = []; order.push(day); }
+    if (!groups[day]) groups[day] = [];
     groups[day].push(it);
   });
-  return order.map(day => ({ day, items: groups[day] }));
+  // Dated groups are numbered days, in chronological order. Undated items go in
+  // a separate, *unnumbered* section at the end so they don't shift every real
+  // day's number by one (audit B3).
+  const datedDays = Object.keys(groups).filter(d => d !== '未定日期').sort();
+  const result = datedDays.map(day => ({ day, items: groups[day], dated: true }));
+  if (groups['未定日期']) result.push({ day: '未定日期', items: groups['未定日期'], dated: false });
+  return result;
 }
 
 function clientMissionStatus(it, today) {
@@ -1176,10 +1222,23 @@ function _nowLocalStr() {
 }
 
 function fmtTime(start, end) {
+  const sDate = String(start || '').slice(0, 10);
+  const eDate = String(end   || '').slice(0, 10);
   const s = String(start || '').slice(11, 16);
   const e = String(end   || '').slice(11, 16);
   if (!s) return '';
-  return e ? s + ' – ' + e : s;
+  if (!e) return s;
+  // Multi-day span: qualify each time with its date so a stay doesn't render as
+  // a nonsensical "15:00 – 10:00" (audit B4).
+  if (eDate && sDate && eDate !== sDate) {
+    return fmtShortDate(sDate) + ' ' + s + ' → ' + fmtShortDate(eDate) + ' ' + e;
+  }
+  return s + ' – ' + e;
+}
+
+function fmtShortDate(d) {
+  const p = String(d).replace(/-/g, '/').split('/');
+  return p.length === 3 ? (parseInt(p[1], 10) + '/' + parseInt(p[2], 10)) : d;
 }
 
 function esc(str) {
